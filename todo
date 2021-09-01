@@ -1,0 +1,54 @@
+A placeholder file for tasks that cannot be placed in code.
+
+TODO: tests
+
+Flaky test
+--- FAIL: TestLoginWithSecondFactor (2.81s)
+    --- FAIL: TestLoginWithSecondFactor/valid_but_already_used_2fa_code (0.23s)
+            http_public_test.go:209: validate totp: invalid
+
+
+^^^^^^^ 0.2 ^^^^^^^
+
+TODO: revisit all templates, fix wording and styling
+TODO: csrf - research more, because tls 1.3 & strict cookie might be enough
+TODO: cors - research more
+TODO: lib/client must implement full API
+
+^^^^^^^ 0.3 ^^^^^^^
+
+TODO: deploy an example for API and public UI usage (heroku? digitalocean?)
+TODO: revisig CSS of public UI
+
+^^^^^^^ 0.4 ^^^^^^^
+
+TODO: write a README
+TODO: documentation and examples
+
+^^^^^^^ 0.5 ^^^^^^^
+
+TODO: release!
+
+^^^^^^^ 1.0 ^^^^^^^
+
+TODO: allow to ovewrite templates
+TODO: update configuration to replace time.Duration with something string serializable
+
+^^^^^^^ 1.1 ^^^^^^^
+
+TODO: translations
+
+^^^^^^^ 1.2 ^^^^^^^
+
+TODO: add events to enable metrics via plugin package (prometheus cannot be compiled with shared flag?)
+TODO: admin password reset
+
+^^^^^^^ 1.3 ^^^^^^^
+
+
+
+
+TODO: acme protocol support for automatic SSL granting
+TODO: after-registration webhook execution
+
+^^^^^^^ random ideas ^^^^^^^

@@ -1,0 +1,32 @@
+{{template "admin_header.html" .}}
+
+<nav>
+  <ul>
+    <li><a href="../../../">Admin Panel</a></li>
+    <li><a href="../../">Accounts</a></li>
+    <li><a href="../">Account of <em>{{.Account.Email}}</em></a></li>
+    <li>Second Factor</li>
+  </ul>
+</nav>
+
+{{if .Code}}
+  <img alt="TOTP QR-Code" src="data:image/png;base64,{{.QRCodeBase64}}">
+
+  Current code: <code>{{.Code}}</code>
+
+  <form method="POST" action=".">
+    <div class="infobox red">
+      <strong>Warning</strong> This operation removes previous secret.
+    </div>
+    <button>Generate a new secret.</button>
+  </form>
+{{else}}
+  <div class="infobox blue">Second Factor not enabled.</div>
+  <form method="POST" action=".">
+    <button>Generate secret.</button>
+  </form>
+{{end}}
+
+
+
+{{template "admin_footer.html" .}}

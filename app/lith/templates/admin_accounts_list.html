@@ -1,0 +1,64 @@
+{{template "admin_header.html" .}}
+
+<nav>
+  <ul>
+    <li><a href="../">Admin Panel</a></li>
+    <li>Accounts</li>
+  </ul>
+</nav>
+
+<a href="./create/" class="button">Create Account</a>
+
+
+<form action="." method="GET">
+  <input type="search" name="q" value="{{.Query}}" placeholder="Display only matching email addresses.">
+  <button type="submit" class="gray">Filter</button>
+</form>
+
+
+{{if .Accounts}}
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Email</th>
+      <th>Created</th>
+      <th>Modified</th>
+      <th>Permissions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{range .Accounts}}
+      <tr>
+        <td><a href="./{{.AccountID}}/">{{.AccountID}}</a></td>
+        <td>{{.Email}}</td>
+        <td title="{{.CreatedAt.Format "2006-01-02 15:04"}}">{{.CreatedAt.Format "2006-01-02"}}</td>
+        <td title="{{.ModifiedAt.Format "2006-01-02 15:04"}}">{{.ModifiedAt.Format "2006-01-02" }}</td>
+        <td>
+          {{range .Permissions}}
+            <span class="label">{{.}}</span>
+          {{end}}
+        </td>
+      </tr>
+    {{end}}
+  </tbody>
+</table>
+{{else}}
+  <div class="infobox blue">No accounts found.</div>
+{{end}}
+
+<div>
+  {{if .Pagination.HasPrev}}
+    <a href="./?q={{.Query}}&page={{.Pagination.PrevPage}}">previous page</a>
+  {{else}}
+    no previous page
+  {{end}}
+  <span>| page {{.Pagination.CurrentPage}} |</span>
+  {{if .Pagination.HasNext}}
+    <a href="./?q={{.Query}}&page={{.Pagination.NextPage}}">next page</a>
+  {{else}}
+    no next page
+  {{end}}
+</div>
+
+{{template "admin_footer.html" .}}

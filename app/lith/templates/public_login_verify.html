@@ -1,0 +1,21 @@
+{{template "public_header.html" .}}
+
+  <h2>{{translate "Verify your login"}}</h2>
+
+  {{if .ErrorMsg}}
+    <div class="infobox red">{{.ErrorMsg}}</div>
+  {{end}}
+
+  <form method="POST" action=".">
+    <fieldset>
+      <label>
+        {{translate "Verification code"}}:
+        <input name="code" type="text" placeholder="{{translate "Verification code"}}" required autocomplete="off">
+      </label>
+    </fieldset>
+    <fieldset>
+      <button>{{translate "Verify"}}</button>
+    </fieldset>
+  </form>
+
+{{template "public_footer.html" .}}

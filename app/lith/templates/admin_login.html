@@ -1,0 +1,25 @@
+{{template "admin_header.html" .}}
+
+  <form method="POST" action="." id="loginform">
+    <header>{{translate "Please login."}}</header>
+    <fieldset>
+      <label>
+        {{translate "Email"}}
+        <input name="email" type="email" value="{{- .Email -}}" required>
+      </label>
+      <label>
+        {{translate "Password"}}
+        <input name="password" type="password" required>
+      </label>
+    </fieldset>
+
+    <input name="next" type="hidden" value="{{- .Next -}}">
+
+    {{if .ErrorMsg}}
+      <div class="infobox red">{{.ErrorMsg}}</div>
+    {{end}}
+
+    <button>{{translate "Login"}}</button>
+  </form>
+
+{{template "admin_footer.html" .}}

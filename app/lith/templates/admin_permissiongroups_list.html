@@ -1,0 +1,39 @@
+{{template "admin_header.html" .}}
+
+<nav>
+  <ul>
+    <li><a href="../">Admin Panel</a></li>
+    <li>Permission Groups</li>
+  </ul>
+</nav>
+
+<a href="./create/" class="button">Create Permission Group</a>
+
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Description</th>
+      <th>Created</th>
+      <th>Modified</th>
+      <th>Permissions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{range .PermissionGroups}}
+      <tr>
+        <td><a href="./{{.PermissionGroupID}}">{{.PermissionGroupID}}</a></td>
+        <td><a href="./{{.PermissionGroupID}}">{{.Description}}</a></td>
+        <td title="{{.CreatedAt.Format "2006-01-02 15:04"}}">{{.CreatedAt.Format "2006-01-02"}}</td>
+        <td title="{{.ModifiedAt.Format "2006-01-02 15:04"}}">{{.ModifiedAt.Format "2006-01-02" }}</td>
+        <td>
+          {{range .Permissions}}
+            <span class="label">{{.}}</span>
+          {{end}}
+        </td>
+      </tr>
+    {{end}}
+  </tbody>
+</table>
+
+{{template "admin_footer.html" .}}

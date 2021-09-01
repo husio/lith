@@ -1,0 +1,8 @@
+{{template "admin_header.html" .}}
+
+<h1>{{.Title}}</h1>
+{{if .Description}}
+  <div class="infobox red">{{.Description}}</div>
+{{end}}
+
+{{template "admin_footer.html" .}}

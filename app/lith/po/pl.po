@@ -1,0 +1,280 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: 2021-11-01 10:09+0100\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: pl\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<12 || n%100>14) ? 1 : 2);\n"
+"X-Generator: Poedit 2.4.3\n"
+
+#: app/lith/templates/admin_account_details.html:21
+msgid "Account Permissions"
+msgstr ""
+
+#: app/lith/templates/admin_account_details.html:12
+msgid "Account details of"
+msgstr "Szczegóły konta"
+
+#: app/lith/http_public.go:223
+msgid "Account email was changed."
+msgstr "Addres email należący do konta został zmieniony."
+
+#: app/lith/http_public.go:400
+msgid "Account is not allowed to login."
+msgstr "Nie można się zalogować używając podanego konta."
+
+#: app/lith/templates/admin_account_details.html:6
+msgid "Account of"
+msgstr ""
+
+#: app/lith/templates/admin_changelogs_list.html:4
+msgid "Admin Panel"
+msgstr "Panel Administracyjny"
+
+#: app/lith/templates/admin_changelogs_list.html:13
+msgid "Author"
+msgstr "Autor"
+
+#: app/lith/http_public.go:860 app/lith/http_public.go:868
+msgid "Cannot generate QR Code."
+msgstr "Nie można wygenerować kodu QR."
+
+#: app/lith/http_public.go:1006 app/lith/http_public.go:242
+#: app/lith/http_public.go:347 app/lith/http_public.go:571
+#: app/lith/http_public.go:803 app/lith/http_public.go:906
+#: app/lith/http_public.go:98
+msgid "Cannot parse form."
+msgstr "Dane formularza nie mogą być przeczytane."
+
+#: app/lith/templates/public_password_reset_complete.html:19
+msgid "Change password"
+msgstr "Zmień hasło"
+
+#: app/lith/http_public.go:846
+msgid "Code already used. Please wait for the next one and try again."
+msgstr "Kod już raz użyty. Poczekaj proszę na następny i spróbuj ponownie."
+
+#: app/lith/http_public.go:589
+msgid "Code has been used. Please wait and use the next code generated."
+msgstr "Kod został użyty. Poczeka proszę na następny i spróbuj ponownie."
+
+#: app/lith/templates/public_twofactor_enable.html:27
+msgid "Confirm"
+msgstr "Potwierdź"
+
+#: app/lith/templates/public_twofactor_enable.html:13
+msgid "Confirm scanned two-factor authentication code."
+msgstr "Potwierdź zeskanowanie kodu."
+
+#: app/lith/templates/admin_account_create.html:26
+msgid "Create"
+msgstr "Utwórz"
+
+#: app/lith/templates/admin_account_create.html:6
+msgid "Create Account"
+msgstr "Nowe Konto"
+
+#: app/lith/templates/admin_account_details.html:55
+#: app/lith/templates/admin_changelogs_list.html:14
+msgid "Created"
+msgstr "Utworzone"
+
+#: app/lith/templates/admin_changelogs_list.html:15
+msgid "Description"
+msgstr "Szczegóły"
+
+#: app/lith/templates/admin_account_create.html:13
+#: app/lith/templates/admin_account_details.html:17
+#: app/lith/templates/admin_login.html:6 app/lith/templates/public_login.html:5
+#: app/lith/templates/public_password_reset.html:5
+#: app/lith/templates/public_register.html:5
+msgid "Email"
+msgstr "Email"
+
+#: app/lith/http_public.go:918
+msgid "Email address not allowed to register."
+msgstr "Podany adres email nie może być użyty do rejestracji."
+
+#: app/lith/http_public.go:1062
+msgid "Email already in use."
+msgstr "Adres email jest już w użytku,"
+
+#: app/lith/http_public.go:358
+msgid "Email and password cannot be empty."
+msgstr "Adres email i hasło nie mogą być puste."
+
+#: app/lith/templates/public_twofactor_enable.html:2
+msgid "Enable two-factor authentication."
+msgstr "Włącz podwójne uwierzytelnianie."
+
+#: app/lith/http_public.go:1014 app/lith/http_public.go:250
+msgid "Entered passwords are not the same."
+msgstr "Podane hasła nie są takie same."
+
+#: app/lith/templates/public_login.html:28
+msgid "Forgot your password?"
+msgstr "Zapomniałes hasło?"
+
+#: app/lith/templates/public_password_reset_success.html:3
+#: app/lith/templates/public_register_success.html:3
+msgid "Great succes."
+msgstr "Pełen sukces."
+
+#: app/lith/templates/admin_changelogs_list.html:12
+msgid "ID"
+msgstr "ID"
+
+#: app/lith/templates/public_register_wait_for_email.html:3
+msgid "In order to complete registration, please check your mailbox."
+msgstr "Aby ukończyć proces rejestracji, sprawdź proszę swoją skrzynkę mailową."
+
+#: app/lith/http_public.go:844
+msgid "Invalid code."
+msgstr "Niepoprawny kod."
+
+#: app/lith/http_public.go:376 app/lith/http_public.go:389
+msgid "Invalid login and/or password."
+msgstr "Niepoprawny login i/lub hasło."
+
+#: app/lith/http_public.go:1044 app/lith/http_public.go:205
+msgid "Invalid token."
+msgstr "Nieważny token."
+
+#: app/lith/http_public.go:585
+msgid "Invalid verification code."
+msgstr "Nieważny kod weryfikacyjny."
+
+#: app/lith/http_public.go:328 app/lith/templates/admin_login.html:21
+#: app/lith/templates/public_login.html:23
+msgid "Login"
+msgstr "Zaloguj się"
+
+#: app/lith/http_public.go:553
+msgid "Login Verify"
+msgstr "Zweryfikuj"
+
+#: app/lith/templates/admin_account_create.html:18
+#: app/lith/templates/admin_login.html:10
+#: app/lith/templates/public_login.html:11
+#: app/lith/templates/public_password_reset_complete.html:6
+#: app/lith/templates/public_register_complete.html:5
+msgid "Password"
+msgstr "Hasło"
+
+#: app/lith/http_public.go:88
+msgid "Password Reset"
+msgstr "Hasło"
+
+#: app/lith/templates/admin_account_details.html:43
+msgid "Permission Groups"
+msgstr ""
+
+#: app/lith/templates/public_password_reset_wait_for_email.html:3
+msgid "Please check your mailbox and follow the instructions on how to reset your password."
+msgstr ""
+
+#: app/lith/templates/admin_login.html:3
+msgid "Please login."
+msgstr ""
+
+#: app/lith/templates/admin_changelogs_list.html:5
+msgid "Recent changes"
+msgstr ""
+
+#: app/lith/http_public.go:896 app/lith/templates/public_register.html:13
+#: app/lith/templates/public_register_complete.html:17
+msgid "Register"
+msgstr "Zarejestruj się"
+
+#: app/lith/http_public.go:232 app/lith/http_public.go:997
+msgid "Register Verify"
+msgstr "Zarejestruj się"
+
+#: app/lith/templates/public_login.html:31
+msgid "Register a new account."
+msgstr "Zarejestruj nowe konto."
+
+#: app/lith/templates/public_password_reset_complete.html:10
+#: app/lith/templates/public_register_complete.html:12
+msgid "Repeat password"
+msgstr "Powtórz hasło"
+
+#: app/lith/templates/public_password_reset_complete.html:3
+msgid "Reset password"
+msgstr "Zresetuj zasło"
+
+#: app/lith/templates/admin_account_details.html:59
+msgid "Save changes"
+msgstr ""
+
+#: app/lith/templates/public_twofactor_enable.html:5
+msgid "Scan the image below with the two-factor authentication app on your phone."
+msgstr ""
+
+#: app/lith/templates/public_password_reset.html:13
+msgid "Submit"
+msgstr "Wyślij"
+
+#: app/lith/http_public.go:754
+msgid "Two Factor"
+msgstr ""
+
+#: app/lith/templates/admin_account_details.html:32
+msgid "Two Factor Authentication"
+msgstr "Włącz podwójne uwierzytelnianie"
+
+#: app/lith/templates/admin_account_details.html:36
+msgid "Two-factor authentication is not enabled."
+msgstr "Podwójne uwierzytelnianie nie jest włączone."
+
+#: app/lith/templates/admin_login_verify.html:11
+#: app/lith/templates/admin_login_verify.html:12
+#: app/lith/templates/public_login_verify.html:11
+#: app/lith/templates/public_login_verify.html:12
+#: app/lith/templates/public_twofactor_enable.html:22
+msgid "Verification code"
+msgstr "Kod weryfikacyjny"
+
+#: app/lith/templates/admin_login_verify.html:16
+#: app/lith/templates/public_login_verify.html:16
+msgid "Verify"
+msgstr "Zweryfikuj"
+
+#: app/lith/templates/admin_login_verify.html:2
+#: app/lith/templates/public_login_verify.html:2
+msgid "Verify your login"
+msgstr "Zweryfikuj logowanie"
+
+#: app/lith/templates/admin_account_create.html:21
+msgid "When an account is created, a random password is assigned. User can then configure password using password reset form."
+msgstr ""
+
+#: app/lith/templates/public_password_reset_success.html:4
+#: app/lith/templates/public_register_success.html:4
+msgid "You can now login."
+msgstr "Możesz się teraz zalogować."
+
+#: app/lith/templates/admin_account_details.html:34
+msgid "is enabled"
+msgstr ""
+
+#: app/lith/templates/admin_account_details.html:56
+msgid "last modified"
+msgstr ""
+
+#: app/lith/templates/admin_changelogs_list.html:29
+msgid "was created."
+msgstr "zostało utworzone."
+
+#: app/lith/templates/admin_changelogs_list.html:35
+msgid "was deleted."
+msgstr "zostało usunięte."
+
+#: app/lith/templates/admin_changelogs_list.html:32
+msgid "was updated."
+msgstr "zostało zmodyfikowane."

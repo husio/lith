@@ -1,0 +1,35 @@
+msgid ""
+msgstr ""
+
+"Language: pl\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=3; plural=n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;"
+"PO-Revision-Date: 2021-10-19 11:28\n"
+
+#. Variable name: i
+#: pkg/translation/testdata/main.go:30
+msgid "%d bottle of beer"
+msgid_plural "%d bottles of beer"
+msgstr[0] "%d butelka piwa"
+msgstr[1] "%d butelki piwa"
+msgstr[2] "%d butelek piwa"
+
+#: pkg/translation/testdata/page.html:7
+msgid "Buy"
+msgstr "Kup"
+
+#: pkg/translation/testdata/main.go:27
+msgid "Good morning"
+msgstr "Dzień dobry"
+
+#: pkg/translation/testdata/page.html:5
+msgid "Hello"
+msgstr "Witaj"
+
+#. Variable name: .Items
+#: pkg/translation/testdata/page.html:6
+msgid "You have %d item selected."
+msgid_plural "You have %d items selected."
+msgstr[0] "Wybrałeś %d produkt."
+msgstr[1] "Wybrałeś %d produkty."
+msgstr[2] "Wybrałeś %d produktów."

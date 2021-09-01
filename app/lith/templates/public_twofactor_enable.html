@@ -1,0 +1,31 @@
+{{template "public_header.html" .}}
+
+<h2>{{translate "Enable two-factor authentication."}}</h2>
+
+<div class="infobox green">
+  {{translate "Scan the image below with the two-factor authentication app on your phone."}}
+</div>
+<p>
+  <img alt="TOTP QR-Code" src="data:image/png;base64,{{.QRCodeBase64}}">
+</p>
+
+<form method="POST" action=".">
+  <p>
+  {{translate "Confirm scanned two-factor authentication code."}}
+  </p>
+
+  {{if .ErrorMsg}}
+    <div class="infobox red">{{.ErrorMsg}}</div>
+  {{end}}
+
+  <formset>
+    <label>
+      {{translate "Verification code"}}
+      <input type="text" name="code" required autocomplete="off">
+    </label>
+  </formset>
+
+  <button>{{translate "Confirm"}}</button>
+</form>
+
+{{template "public_footer.html" .}}

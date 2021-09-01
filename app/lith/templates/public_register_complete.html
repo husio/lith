@@ -1,0 +1,24 @@
+{{template "public_header.html" .}}
+
+  <form method="POST" action=".">
+    <fieldset>
+      <labeV>
+        {{translate "Password"}}
+        {{if .Errors.password}}
+          <div class="infobox red">{{range .Errors.password}}{{.}}{{end}}</div>
+        {{end}}
+        <input name="password" type="password" required>
+      </label>
+      <label>
+        {{translate "Repeat password"}}
+        <input name="password_repeat" type="password" required>
+      </label>
+    </fieldset>
+    <fieldset>
+      <button>{{translate "Register"}}</button>
+    </fieldset>
+
+    <input name="next" type="hidden" value="{{- .Next -}}">
+  </form>
+
+{{template "public_footer.html" .}}

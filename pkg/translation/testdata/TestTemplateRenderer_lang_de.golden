@@ -1,0 +1,10 @@
+<!doctype html>
+<html>
+  <head>
+  </head>
+  <body>
+    <h1>Hello Jimmy!</h1>
+    <p>You have 5 items selected.</p>
+    <button>Buy</button>
+  </body>
+</html>

@@ -1,0 +1,20 @@
+{{template "public_header.html" .}}
+
+  <form method="POST" action=".">
+    <fieldset>
+      <label>
+        {{translate "Email"}}
+        {{if .Errors.email}}
+          <div class="infobox red">{{range .Errors.email}}{{.}}{{end}}</div>
+        {{end}}
+        <input name="email" type="email" value="{{- .Email -}}" required>
+      </label>
+    </fieldset>
+    <fieldset>
+      <button>{{translate "Register"}}</button>
+    </fieldset>
+
+    <input name="next" type="hidden" value="{{- .Next -}}">
+  </form>
+
+{{template "public_footer.html" .}}

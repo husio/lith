@@ -1,0 +1,200 @@
+:root {
+	--bg-color: #EFEFEF;
+	--fg-color: #B9B9B9;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	width: 100%;
+	max-width: 100em;
+	margin: auto;
+	font-family: system-ui, -apple-system, "Segoe UI", "Roboto", "Ubuntu", "Cantarell", "Noto Sans", sans-serif;
+}
+
+body {
+	line-height: 1.5;
+	font-size: 110%;
+	margin: 0;
+	padding: 0;
+}
+
+main {
+	margin: 0 auto;
+	padding: 2rem 4rem;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    line-height: 1.5;
+}
+
+form {
+	display: block;
+	padding: 1.5rem 0;
+}
+
+form header {
+	font-size: 160%;
+	font-weight: bold;
+	margin-bottom: 2rem;
+}
+
+form fieldset header {
+	font-size: 125%;
+	margin-top: 1rem;
+}
+
+input,
+label,
+select,
+textarea {
+    display: block;
+    width: 100%;
+    font-size: inherit;
+}
+
+fieldset {
+	border: none;
+	padding: 1rem 0;
+}
+
+input,
+select,
+textarea {
+    border: 1px solid #717171;
+    border-radius: 5px;
+    margin-bottom: 1rem;
+    padding: 0.4rem 0.8rem;
+}
+
+
+input[type="checkbox"],
+input[type="radio"] {
+    display: inline-block;
+    width: unset;
+}
+
+input[type="checkbox"]+label,
+input[type="radio"]+label {
+    display: inline-block;
+    font-weight: normal;
+    position: relative;
+    top: 1px;
+}
+
+nav {
+    display: block;
+}
+
+nav ul {
+    list-style: none;
+    padding: 0;
+}
+
+nav ul li {
+    display: inline-block;
+    position: relative;
+    margin: 0;
+    text-align: left;
+}
+
+nav ul li:before {
+	padding: 0 0.4rem 0 0.6rem;
+	content: "\00BB";
+}
+
+table {
+    width: 100%;
+    border-spacing: 0;
+    overflow-x: auto;
+    padding: 0;
+    margin: 2rem 0;
+}
+
+table thead th {
+	border-top: 2px solid #E8E8E8;
+	border-bottom: 2px solid #E8E8E8;
+	background-color: #F9F9F9;
+}
+
+table tbody tr:nth-child(even) {
+	background-color: #F9F9F9;
+}
+
+table td,
+table th,
+table tr {
+	text-align: left;
+	padding: 0.5rem 0.6rem;
+}
+
+button,
+.button {
+	--fg-color: #1095C1;
+	--bg-color: #FFFFFF;
+
+	border-radius: 5px;
+	display: inline-block;
+	font-size: medium;
+	font-weight: bold;
+	line-height: 1;
+	padding: 0.8rem 2rem;
+	color: var(--bg-color);
+	background-color: var(--fg-color);
+	border: 0;
+	text-decoration: none;
+}
+button:active,
+.button:active {
+	margin: 1px -1px -1px 1px;
+}
+
+
+/* hard not to be classy */
+
+.gray {
+	--bg-color: #FFFFFF;
+	--fg-color: #8E8E8E;
+}
+
+.green {
+	--bg-color: #ECFFE3;
+	--fg-color: #5A9426;
+}
+
+.blue {
+	--bg-color: #E7F7FF;
+	--fg-color: #76D1FF;
+}
+
+.red {
+	--bg-color: #FFE2E2;
+	--fg-color: #AA001E;
+}
+
+.text {
+	color: var(--fg-color);
+}
+
+.infobox {
+	padding: 1rem 2rem;
+	border: 1px solid var(--fg-color);
+	background-color: var(--bg-color);
+	margin: 2rem 0;
+}
+
+.label {
+	padding: 0.2rem 0.8rem;
+	margin: 0 0.3rem;
+	background-color: var(--bg-color);
+	border-radius: 5px;
+	line-height: 1.9;
+}

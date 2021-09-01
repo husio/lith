@@ -1,0 +1,30 @@
+{{template "admin_header.html" .}}
+
+<nav>
+  <ul>
+    <li><a href="../../">Admin Panel</a></li>
+    <li><a href="../">Accounts</a></li>
+    <li>{{translate "Create Account"}}</li>
+  </ul>
+</nav>
+
+<form method="POST" action=".">
+  <fieldset>
+    <label>
+      {{translate "Email"}}
+      <input name="email" value="{{.Email}}" required>
+    </label>
+
+    <label>
+      {{translate "Password"}}
+      <input placeholder="random value" disabled>
+      <div class="infobox blue">
+        {{translate "When an account is created, a random password is assigned. User can then configure password using password reset form."}}
+      </div>
+    </label>
+  </fieldset>
+
+  <button class="green">{{translate "Create"}}</button>
+</form>
+
+{{template "admin_footer.html" .}}

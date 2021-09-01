@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+html, body { width: 100%; margin: 0; padding: 0; }
+body { margin:4rem auto; max-width: 140rem; line-height:1.6; font-size:18px; }
+table.fullwidth { width: 100%; border-spacing: 0; overflow-x: auto; padding: 0; margin: 2rem 0; }
+table.fullwidth  td, table.fullwidth th, table.fullwidth tr { text-align: left; padding: 0.5rem 0.6rem; }
+</style>
+  </head>
+  <body>
+
+
+<h1>Task queue store</h1>
+<h2>Summary</h2>
+<table>
+  <tbody>
+    <tr>
+      <th>Ready/Waiting tasks</th>
+      <td>{{.WaitingCount}}</td>
+    </tr>
+    <tr>
+      <th>Acquired tasks</th>
+      <td>{{.AcquiredCount}}</td>
+    </tr>
+    <tr>
+      <th>Deadqueue size</th>
+      <td>{{.DeadqueueCount}}</td>
+    </tr>
+    <tr>
+      <th>Failures count</th>
+      <td>{{.FailuresCount}}</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Next to process</h2>
+{{if .Waiting}}
+  <table class="fullwidth">
+    <thead>
+      <tr>
+        <th>Task ID</th>
+        <th>Name</th>
+        <th>Payload</th>
+        <th>Retry</th>
+        <th>Timeout</th>
+        <th>Execute&nbsp;At</th>
+        <th>Created&nbsp;At</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Waiting}}
+        <tr>
+          <td>{{.TaskID}}</td>
+          <td><pre><code>{{.Name}}</code></pre></td>
+          <td><code>{{.Payload}}</code></td>
+          <td>{{.Retry}}</td>
+          <td>{{.Timeout}}</td>
+          <td>{{.ExecuteAt.Format "2006-01-02 at 15:04"}}</td>
+          <td>{{.CreatedAt.Format "2006-01-02 at 15:04"}}</td>
+        </tr>
+      {{end}}
+    </tbody>
+  </table>
+{{else}}
+  <div>No tasks waiting to be processed.</div>
+{{end}}
+
+<h2>Last failures</h2>
+{{if .Failures}}
+  <table class="fullwidth">
+    <thead>
+      <tr>
+        <th>Task ID</th>
+        <th>Created At</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Failures}}
+        <tr>
+          <td>{{.TaskID}}</td>
+          <td>{{.CreatedAt.Format "2006-01-02 at 15:04"}}</td>
+          <td><code>{{.Description}}</code></td>
+        </tr>
+      {{end}}
+    </tbody>
+  </table>
+{{else}}
+  <div>No failures recorded</div>
+{{end}}
+
+
+  </body>
+</html>

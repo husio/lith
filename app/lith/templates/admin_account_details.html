@@ -1,0 +1,63 @@
+{{template "admin_header.html" .}}
+
+<nav>
+  <ul>
+    <li><a href="../../">Admin Panel</a></li>
+    <li><a href="../">Accounts</a></li>
+    <li>{{translate "Account of"}} <em>{{.Account.Email}}</em>" </li>
+  </ul>
+</nav>
+
+<form method="POST" action=".">
+  <header>
+    {{translate "Account details of"}} {{.Account.AccountID}}
+  </header>
+
+  <fieldset>
+    <label>
+      {{translate "Email"}}
+      <input name="email" value="{{.Account.Email}}" disabled>
+    </label>
+    <label>
+      {{translate "Account Permissions"}}
+      <div>
+        {{range .Account.Permissions}}
+          <span class="label">{{.}}</span>
+        {{end}}
+      </div>
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <label class="">
+      {{translate "Two Factor Authentication"}}
+      {{if .AccountTwoFactor}}
+        <span class="text green">{{translate "is enabled"}}</span>
+      {{else}}
+        <div class="infobox red">{{translate "Two-factor authentication is not enabled."}}</div>
+      {{end}}
+    </label>
+  </fieldset>
+
+
+  <fieldset>
+  <header>{{translate "Permission Groups"}}</header>
+  {{range .PermissionGroups}}
+    <p>
+      <label>
+        <input type="checkbox" name="permissiongroup" value="{{.PermissionGroupID}}" {{if .AssignedToAccount}}checked{{end}}> {{.Description}}
+      </label>
+      {{range .Permissions}}<span class="label">{{.}}</span>{{end}}
+    </p>
+  {{end}}
+  </fieldset>
+
+  <p>
+    {{translate "Created"}} {{.Account.CreatedAt.Format "02.01.2006"}},
+    {{translate "last modified"}} {{.Account.ModifiedAt.Format "02.01.2006"}}.
+  </p>
+
+  <button class="green">{{translate "Save changes"}}</button>
+</form>
+
+{{template "admin_footer.html" .}}

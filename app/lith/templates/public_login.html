@@ -1,0 +1,36 @@
+{{template "public_header.html" .}}
+
+  <form method="POST" action=".">
+    <fieldset>
+      <label>
+        {{translate "Email"}}
+        <input name="email" type="email" value="{{- .Email -}}" required>
+      </label>
+    </fieldset>
+    <fieldset>
+      <label>
+        {{translate "Password"}}
+        <input name="password" type="password" required>
+      </label>
+    </fieldset>
+
+    {{if .ErrorMsg}}
+      <div class="infobox red">{{.ErrorMsg}}</div>
+    {{end}}
+
+    <input name="next" type="hidden" value="{{- .Next -}}">
+
+    <fieldset>
+      <button>{{translate "Login"}}</button>
+    </fieldset>
+  </form>
+  <ul>
+    {{if .AllowPasswordReset}}
+    <li><a href="../password-reset/">{{translate "Forgot your password?"}}</a></li>
+    {{end}}
+    {{if .AllowRegisterAccount}}
+      <li><a href="../register/?next={{.Next}}">{{translate "Register a new account."}}</a></li>
+    {{end}}
+  </ul>
+
+{{template "public_footer.html" .}}

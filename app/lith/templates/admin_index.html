@@ -1,0 +1,26 @@
+{{template "admin_header.html" .}}
+
+<nav>
+  <ul>
+    <li>Admin Panel</li>
+  </ul>
+</nav>
+
+<div>
+  Currently logged as <em>{{.CurrentAccount.Email}}</em>,
+  <a href="{{.AbsolutePath "/logout/"}}">logout</a>.
+</div>
+
+<ul>
+  <li>
+    <a href="{{.AbsolutePath "/accounts/"}}">Accounts</a>
+  </li>
+  <li>
+    <a href="{{.AbsolutePath "/permissiongroups/"}}">Permission Groups</a>
+  </li>
+  <li>
+    <a href="{{.AbsolutePath "/changelogs/"}}">Recent changes</a>
+  </li>
+</ul>
+
+{{template "admin_footer.html" .}}

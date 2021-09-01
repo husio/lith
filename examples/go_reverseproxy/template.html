@@ -1,0 +1,25 @@
+<!doctype html>
+<head>
+  <style>
+    body { font-size: 160%; max-width: 120rem; margin: 2rem auto;}
+  </style>
+</head>
+<body>
+  {{if .Account}}
+    <h1>Hello!</h1>
+    <p>Account ID {{.Account.AccountID}}</p>
+    <p>Session ID {{.Account.SessionID}}</p>
+    <p>
+      Permissions:
+      <ul>
+        {{range .Account.Permissions}}
+          <li>{{.}}</li>
+        {{end}}
+      </ul>
+    </p>
+    <a href="{{.Prefix}}/logout/?next=/bye">Logout</a>.
+  {{else}}
+    <h1>Welcome stranger!</h1>
+    <a href="{{.Prefix}}/login/?next=/hi">Login</a>.
+  {{end}}
+</body>

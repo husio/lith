@@ -1,0 +1,47 @@
+{{template "admin_header.html" .}}
+
+<nav>
+  <ul>
+    <li><a href="../">{{translate "Admin Panel"}}</a></li>
+    <li>{{translate "Recent changes"}}</li>
+  </ul>
+</nav>
+
+<table>
+  <thead>
+    <tr>
+      <th>{{ translate "ID"}}</th>
+      <th>{{ translate "Author"}}</th>
+      <th>{{ translate "Created"}}</th>
+      <th>{{ translate "Description"}}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{with $root := .}}
+    {{range $root.Changelogs}}
+      <tr>
+        <td>{{.ChangelogID}}</td>
+        <td><a href="{{$root.AbsolutePath ""}}accounts/{{.AccountID}}/">{{.AccountEmail}}</a></td>
+        <td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
+        <td>
+          {{if ne .Operation "deleted"}}{{if .EntityURL}}<a href="{{.EntityURL}}">{{end}}{{end}}
+
+          {{if eq .Operation "created"}}
+            {{.EntityKind}} <code>{{.EntityPk}}</code> {{translate "was created."}}
+          {{end}}
+          {{if eq .Operation "updated"}}
+            {{.EntityKind}} <code>{{.EntityPk}}</code> {{translate "was updated."}}
+          {{end}}
+          {{if eq .Operation "deleted"}}
+            {{.EntityKind}} <code>{{.EntityPk}}</code> {{translate "was deleted."}}
+          {{end}}
+
+          {{if ne .Operation "deleted"}}{{if .EntityURL}}</a>{{end}}{{end}}
+        </td>
+      </tr>
+    {{end}}
+    {{end}}
+  </tbody>
+</table>
+
+{{template "admin_footer.html" .}}
