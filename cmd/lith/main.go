@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/husio/lith/app/lith"
@@ -31,13 +32,19 @@ func main() {
 		Database:             "./lith.sqlite3.db?_journal=wal&_fk=on",
 		TaskQueueDatabase:    "./lith_taskqueue.sqlite3.db?_journal=wal&_fk=on",
 		StoreVacuumFrequency: 31 * time.Minute,
-		Secret:               "",
+		Secret:               os.Getenv("SECRET"),
+		SyncSecret:           os.Getenv("SYNC_SECRET"),
 		MaxCacheSize:         1e7,
 		EventSinkBackend:     "dropall",
 		EmailBackend:         "smtp",
+		SMTP: lith.SMTPConfiguration{
+			Host:     os.Getenv("SMTP_HOST"),
+			Password: os.Getenv("SMTP_PASSWORD"),
+			Username: os.Getenv("SMTP_USERNAME"),
+		},
 
 		API: lith.APIConfiguration{
-			ListenHTTP:           ":8000",
+			ListenHTTP:           ":" + os.Getenv("PORT"),
 			PathPrefix:           "/api/",
 			SessionMaxAge:        4 * 24 * time.Hour,
 			SessionRefreshAge:    2 * 24 * time.Hour,
@@ -49,7 +56,7 @@ func main() {
 			AllowRegisterEmail: ".*",
 		},
 		PublicUI: lith.PublicUIConfiguration{
-			ListenHTTP:           ":8000",
+			ListenHTTP:           ":" + os.Getenv("PORT"),
 			DomainSSL:            true,
 			PathPrefix:           "/",
 			RequireTwoFactorAuth: true,
@@ -63,7 +70,7 @@ func main() {
 			AllowRegisterEmail:   ".*",
 		},
 		AdminPanel: lith.AdminPanelConfiguration{
-			ListenHTTP:           ":8000",
+			ListenHTTP:           ":" + os.Getenv("PORT"),
 			PathPrefix:           "/admin/",
 			SessionMaxAge:        3 * 24 * time.Hour,
 			RequireTwoFactorAuth: true,
@@ -113,7 +120,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	emitter := alert.NewTextEmitter(os.Stdout)

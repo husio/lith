@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Lith Demo</title>
+    <link href="https://unpkg.com/mvp.css" rel="stylesheet">
+    <style>
+      html, body { max-width: 60em; margin: 4em auto; font-size: 120%; }
+    </style>
+  </head>
+  <body>
+    <h1>Lith DEMO</h1>
+
+    <p>
+      Welcome to <a href="https://github.com/husio/lith">Lith</a> demo application running on Heroku.
+
+      This instance is running version <code>{{.Version}}</code>for {{.ApplicationUptime}}.
+
+      Any changes are discarded periodically, when the state of this application is being reset.
+    </p>
+
+    <p>
+      To learn more, see <a href="https://github.com/husio/lith">the source code</a> or read <a href="https://lith.readthedocs.io/">the documentation</a>.
+    </p>
+
+    <p>
+      You can <a href="/pub/login/">login</a> with an existing account or <a href="/pub/register/">register a new one</a>.
+    </p>
+
+    <p>
+      <a href="/admin/">Admin panel</a> allows you to manage the application.
+      Use <code>admin@lith-demo.herokuapp.com</code> email, and <code>admin</code> password to log in.
+    </p>
+
+    <p>
+      You can monitor the <a href="/_/taskqueue/">task queue</a>.
+    </p>
+
+    <p>
+      If you wish to try <a href="https://lith.readthedocs.io/api.html">the JSON API</a>, it is prefixed with <code>/api/</code>
+    </p>
+  </body>
+</html>

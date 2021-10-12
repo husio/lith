@@ -7,6 +7,7 @@ type Configuration struct {
 	TaskQueueDatabase    string
 	Secret               string
 	StoreVacuumFrequency time.Duration
+	SyncSecret           string
 
 	// Event recipient configuraiton.
 	//

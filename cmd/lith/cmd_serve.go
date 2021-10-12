@@ -12,6 +12,8 @@ import (
 	"net/smtp"
 	"time"
 
+	_ "embed"
+
 	"github.com/husio/lith/app/lith"
 	"github.com/husio/lith/pkg/alert"
 	"github.com/husio/lith/pkg/cache"
@@ -33,7 +35,7 @@ func runServer(ctx context.Context, conf lith.Configuration) error {
 	cache := cache.NewLocalMemCache(conf.MaxCacheSize)
 
 	safe := secret.AESSafe(conf.Secret)
-	store, err := lith.OpenSQLiteStore(conf.Database, safe)
+	store, err := OpenSyncStore(conf.Database, conf.SyncSecret, safe)
 	if err != nil {
 		return fmt.Errorf("open sqlite store: %w", err)
 	}
@@ -114,6 +116,9 @@ func runServer(ctx context.Context, conf lith.Configuration) error {
 		}
 		secret := sum.Sum(nil)
 		registerApp(addr, conf.AdminPanel.PathPrefix, lith.AdminHandler(conf.AdminPanel, store, cache, safe, secret, events))
+
+		registerApp(addr, "/", herokuLandingPage())
+		registerApp(addr, "/_/taskqueue/", http.StripPrefix("/_/taskqueue", queueStore))
 	}
 
 	errc := make(chan error)

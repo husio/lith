@@ -83,3 +83,15 @@ CREATE TABLE ephemeraltokens (
 INSERT INTO permissiongroups (permissiongroup_id, permissions_array, description, created_at, modified_at)
 VALUES  (1, 'lith-admin',      'System Admin',   strftime('%s', 'now'), strftime('%s', 'now')),
 	(2, 'login',           'Active Account', strftime('%s', 'now'), strftime('%s', 'now'));
+
+
+---
+
+
+
+
+
+INSERT INTO accounts (account_id, email, password, created_at, modified_at)
+VALUES ('9df3a4b9b6cd92e94ce357fc9066428f', 'admin@lith-demo.herokuapp.com', '$2a$12$vVBR9uz59Z0ZIhzFkWGeEeslzTxCz2lXrnRWvuOAlewUQniXwyjN.', strftime('%s', 'now'), strftime('%s', 'now'));
+---
+INSERT INTO account_permissiongroups (account_id, permissiongroup_id) VALUES ('9df3a4b9b6cd92e94ce357fc9066428f', 1), ('9df3a4b9b6cd92e94ce357fc9066428f', 2);
