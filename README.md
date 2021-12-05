@@ -1,4 +1,4 @@
-[![Go](https://github.com/husio/lith/actions/workflows/go.yml/badge.svg)](https://github.com/husio/lith/actions/workflows/go.yml)
+[![Go](https://github.com/husio/lith/actions/workflows/go.yml/badge.svg)](https://github.com/husio/lith/actions/workflows/go.yml) | [Quick Start](#quick-start) | [Examples](#examples)
 
 # Lith
 
