@@ -50,7 +50,7 @@ For convenience, two-factor authentication is disabled. You can enable it in the
     nginx_gateway_mailhog_1      MailHog                          Up       1025/tcp, 0.0.0.0:8025->8025/tcp,:::8025->8025/tcp
 
 
-## How it works?
+## How it works.
 
 When you go to http://localhost:8000, Python application will check if you have an active session by introspecting your cookies. If you provide a session cookie, a call to Lith is made to validate and introspect your token.
 If you are not authenticated, Python application will display a link to Lith authentication page where you can authenticate.
