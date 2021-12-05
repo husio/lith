@@ -3,9 +3,8 @@
 # Lith
 
 
-Lith is a service that integrates with your application to provide
-authentication functionality. It is small, fast, self-contained and easy to
-configure.
+Lith is an authentication service that integrates with your application. It is
+small, fast, self-contained and easy to configure.
 
 
 ## Features
@@ -42,12 +41,12 @@ Finally, you can run the application and serve HTTP traffic:
 
 Visit http://localhost:8000/admin/ and login with your admin account.
 
-`examples/` directory contains demo application that show how integration with
-lith can be done.
+The `examples/` directory contains demo applications that show how to
+integration with lith.
 
 
 ## Examples
 
-- [Nginx gateway, services routing based on the path](examples/nginx_gateway/),
-- [A standalone Go application with an embedded reverse proxy to Lith](examples/go_reverseproxy/),
-- [A single page application using Lith JSON API](examples/js_spa/),
+- [Nginx gateway, services routing based on the path](examples/nginx_gateway/)
+- [A standalone Go application with an embedded reverse proxy to Lith](examples/go_reverseproxy/)
+- [A single page application using Lith JSON API](examples/js_spa/)
