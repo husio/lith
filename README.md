@@ -18,7 +18,7 @@ configure.
 * **Admin Panel** for managing the application.
 * **HTML and JSON** interfaces to integrate with your application.
 * **Open Source**
-* **No dependencies**, single static binary.
+* **Since dependency** (SMTP server), single static binary.
 
 
 ## Quick start
