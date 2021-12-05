@@ -160,7 +160,7 @@ func checkConfiguration(c lith.Configuration) []string {
 	}
 
 	switch c.EmailBackend {
-	case "smtp":
+	case "smtp", "fs":
 	case "":
 		issues = append(issues, "EmailBackend is required.")
 	default:
@@ -201,9 +201,18 @@ func checkConfiguration(c lith.Configuration) []string {
 	if _, err := regexp.Compile(c.PublicUI.AllowRegisterEmail); err != nil {
 		issues = append(issues, "PublicUI.AllowRegisterEmail is not a valid regular expression.")
 	}
+	if c.PublicUI.FromEmail == "" {
+		issues = append(issues, "PublicUI.FromEmail must not be empty.")
+	}
+	if strings.HasPrefix(c.PublicUI.Domain, "http://") || strings.HasPrefix(c.PublicUI.Domain, "https://") {
+		issues = append(issues, "PublicUI.Domain must not contain protocol.")
+	}
 
 	if _, err := regexp.Compile(c.API.AllowRegisterEmail); err != nil {
 		issues = append(issues, "API.AllowRegisterEmail is not a valid regular expression.")
+	}
+	if c.API.FromEmail == "" {
+		issues = append(issues, "API.FromEmail must not be empty.")
 	}
 	return issues
 }

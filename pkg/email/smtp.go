@@ -2,6 +2,7 @@ package email
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net/smtp"
 )
@@ -40,4 +41,33 @@ func formatMessage(from, to, subject string, body []byte) []byte {
 	fmt.Fprintf(b, "\r\n")
 
 	return b.Bytes()
+}
+
+// unsafePlainAuth is a copy of smtp.plainAuth with a modification to allow
+// sending over any unencrypted connection.
+type unsafePlainAuth struct {
+	identity, username, password string
+	host                         string
+}
+
+// UnsafePlainAuth returns plain auth authentication, just like the
+// smtp.PlainAuth function does. The difference is that UnsafePlainAuth always
+// allows to use unencrypted connection.
+func UnsafePlainAuth(identity, username, password, host string) smtp.Auth {
+	return &unsafePlainAuth{identity, username, password, host}
+}
+
+func (a *unsafePlainAuth) Start(server *smtp.ServerInfo) (string, []byte, error) {
+	if server.Name != a.host {
+		return "", nil, errors.New("wrong host name")
+	}
+	resp := []byte(a.identity + "\x00" + a.username + "\x00" + a.password)
+	return "PLAIN", resp, nil
+}
+
+func (a *unsafePlainAuth) Next(fromServer []byte, more bool) ([]byte, error) {
+	if more {
+		return nil, errors.New("unexpected server challenge")
+	}
+	return nil, nil
 }

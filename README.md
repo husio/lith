@@ -49,3 +49,10 @@ Visit http://localhost:8000/admin/ and login with your admin account.
 
 `examples/` directory contains demo application that show how integration with
 lith can be done.
+
+
+## Examples
+
+- [Nginx gateway, services routing based on the path](examples/nginx_gateway/),
+- [A standalone Go application with an embedded reverse proxy to Lith](examples/go_reverseproxy/),
+- [A single page application using Lith JSON API](examples/js_spa/),

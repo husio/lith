@@ -7,8 +7,13 @@ type Configuration struct {
 	TaskQueueDatabase    string
 	Secret               string
 	StoreVacuumFrequency time.Duration
-	EmailBackend         string
-	SMTP                 SMTPConfiguration
+
+	// Email configuraiton.
+	//
+	// EmailBackend specifies which backend to use. Choices are: smtp fs
+	EmailBackend    string
+	SMTP            SMTPConfiguration
+	FilesystemEmail FilesystemEmailConfiguration
 
 	// MaxCacheSize if set, defines how many bytes can be used by the
 	// in-memory cache service before the LRU starts evicting entries.
@@ -26,6 +31,17 @@ type SMTPConfiguration struct {
 	Host     string
 	Username string
 	Password string
+
+	// AllowUnencrypted allows to authenticate using an unencrypted
+	// connection. This configuration is for testing purposes only, when
+	// running a local cluster without certificates.
+	AllowUnencrypted bool
+}
+
+type FilesystemEmailConfiguration struct {
+	// Dir specifies a directory where all email messages will be written
+	// instead of sending over the network.
+	Dir string
 }
 
 type PublicUIConfiguration struct {

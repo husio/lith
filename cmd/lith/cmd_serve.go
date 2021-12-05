@@ -42,10 +42,22 @@ func runServer(ctx context.Context, conf lith.Configuration) error {
 		}
 	}()
 
-	emailserver := email.NewSMTPServer(
-		fmt.Sprintf("%s:%d", conf.SMTP.Host, conf.SMTP.Port),
-		smtp.PlainAuth("", conf.SMTP.Username, conf.SMTP.Password, conf.SMTP.Host),
-	)
+	var emailserver email.Server
+
+	switch conf.EmailBackend {
+	case "smtp":
+		var auth smtp.Auth
+		if conf.SMTP.AllowUnencrypted {
+			auth = email.UnsafePlainAuth("", conf.SMTP.Username, conf.SMTP.Password, conf.SMTP.Host)
+		} else {
+			auth = smtp.PlainAuth("", conf.SMTP.Username, conf.SMTP.Password, conf.SMTP.Host)
+		}
+		emailserver = email.NewSMTPServer(fmt.Sprintf("%s:%d", conf.SMTP.Host, conf.SMTP.Port), auth)
+	case "fs":
+		emailserver = email.NewFilesystemServer(conf.FilesystemEmail.Dir)
+	default:
+		return fmt.Errorf("email backend not supported: %s", conf.EmailBackend)
+	}
 
 	queueStore, err := taskqueue.OpenTaskQueue(conf.TaskQueueDatabase)
 	if err != nil {
