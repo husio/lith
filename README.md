@@ -31,11 +31,6 @@ one using `print-config` command:
 
     lith print-config > conf.toml
 
-Please edit the generated `conf.toml` file and set `Secret`. You can generate
-a decent value using the below command:
-
-    cat /dev/urandom | tr -dc 'a-zA-Z0-9_\-()[]{}!@#$%^&*' | fold -w 64 | head -n 1
-
 Second configuration step is to add an administrator account that will be able
 to login to the admin panel.
 
