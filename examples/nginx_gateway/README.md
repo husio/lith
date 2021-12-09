@@ -33,7 +33,7 @@ When successful, several services will be running.
 * A Lith instance is running and you can access it via Nginx. Several endpoints are available:
   * Authentication at  http://localhost:8000/auth/login/
   * Admin panel at http://localhost:8000/admin/
-* A [Mailhog](https://github.com/mailhog/MailHog) test SMTP server [with web UI running at http://localhost:8025](http://localhost:8025).
+* A [Mailhog](https://github.com/mailhog/MailHog) test SMTP server [with web a UI running at http://localhost:8025](http://localhost:8025).
 
 During startup an admin account `admin@example.com` with password `admin` is created. You can use it to login.
 
