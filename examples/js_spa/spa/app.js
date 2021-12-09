@@ -1,7 +1,7 @@
 ;(function() {
 "use strict"
 
-var lithApiUrl = "http://localhost:8001"
+var lithApiUrl = "http://localhost:8000/api"
 
 var Account = null
 
@@ -69,7 +69,7 @@ var Login = {
 
             m.request({
               method: "POST",
-              url: lithApiUrl + "/api/sessions",
+              url: lithApiUrl + "/sessions",
               body: {email: form.email, password: form.password, code: form.code},
             })
             .then(function (result) {
@@ -112,7 +112,7 @@ var Login = {
 
           m.request({
             method: "POST",
-            url: lithApiUrl + "/api/sessions",
+            url: lithApiUrl + "/sessions",
             body: {email: form.email, password: form.password},
           })
           .then(function (result) {
@@ -175,7 +175,7 @@ var Hello = {
     var that = this
     m.request({
       method: "GET",
-      url: lithApiUrl + "/api/twofactor",
+      url: lithApiUrl + "/twofactor",
       headers: {Authorization: "Bearer " + Account.session_id},
     })
     .then(function (result) {
@@ -255,7 +255,7 @@ var Register = {
 
           m.request({
             method: "POST",
-            url: lithApiUrl + "/api/accounts",
+            url: lithApiUrl + "/accounts",
             body: {email: form.email},
           })
           .then(function (result) {
@@ -341,7 +341,7 @@ var RegisterComplete = {
 
           m.request({
             method: "PUT",
-            url: lithApiUrl + "/api/accounts",
+            url: lithApiUrl + "/accounts",
             body: {password: form.password, token: form.token},
           })
           .then(function (result) {
@@ -420,7 +420,7 @@ var ResetPassword = {
 
           m.request({
             method: "POST",
-            url: lithApiUrl + "/api/passwordreset",
+            url: lithApiUrl + "/passwordreset",
             body: {email: form.email},
           })
           .then(function (result) {
@@ -504,7 +504,7 @@ var ResetPasswordComplete = {
 
           m.request({
             method: "PUT",
-            url: lithApiUrl + "/api/passwordreset",
+            url: lithApiUrl + "/passwordreset",
             body: {token: form.token, password: form.password},
           })
           .then(function (result) {
@@ -571,7 +571,7 @@ var TwoFactor = {
     var that = this
     m.request({
       method: "GET",
-      url: lithApiUrl + "/api/twofactor",
+      url: lithApiUrl + "/twofactor",
       headers: {Authorization: "Bearer " + Account.session_id},
     })
     .then(function (result) {
@@ -624,7 +624,7 @@ var TwoFactor = {
 
           m.request({
             method: "POST",
-            url: lithApiUrl + "/api/twofactor",
+            url: lithApiUrl + "/twofactor",
             headers: {Authorization: "Bearer " + Account.session_id},
             body: {secret: form.secret, code: form.code},
           })
@@ -686,7 +686,7 @@ var Logout = {
     Account = null
     m.request({
       method: "DELETE",
-      url: lithApiUrl + "/api/sessions",
+      url: lithApiUrl + "/sessions",
       headers: {Authorization: "Bearer " + session_id},
     })
     .then(function () { m.route.set("/login") })

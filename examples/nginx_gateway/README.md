@@ -29,7 +29,7 @@ Run `docker-compose up` to start the application. You can use `-d` flag to run i
 When successful, several services will be running.
 
 * Nginx is running on port 8000 and serving all the traffic.
-* A Python web application is runing and [you can access it via Nginx](http://localhost:8000). This is where your business logic would be.
+* A Python web application is running and [you can access it via Nginx](http://localhost:8000). This is where your business logic would be.
 * A Lith instance is running and you can access it via Nginx. Several endpoints are available:
   * Authentication at  http://localhost:8000/auth/login/
   * Admin panel at http://localhost:8000/admin/

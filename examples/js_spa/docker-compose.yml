@@ -1,0 +1,44 @@
+version: '3'
+
+services:
+  frontend:
+    image: nginx:alpine
+    ports:
+      - 8000:80
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./spa:/var/www/spa:ro
+    depends_on: ['lith']
+    command: [nginx-debug, '-g', 'daemon off;']
+
+  lith-admin:
+    image: lith
+    volumes:
+      - ./db:/db:rw
+      - type: bind
+        source: ./lith.conf
+        target: /etc/lith.conf
+        read_only: true
+    command: [
+      '-conf', '/etc/lith.conf', 'useradd',
+        '-email', 'admin@example.com',
+        '-password', 'admin',
+        '-allow-insecure',
+        '-groups', '1,2',
+    ]
+
+  lith:
+    image: lith
+    depends_on: ['mailhog', 'lith-admin']
+    volumes:
+      - ./db:/db:rw
+      - type: bind
+        source: ./lith.conf
+        target: /etc/lith.conf
+        read_only: true
+    command: ['-conf', '/etc/lith.conf', 'serve']
+
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - 8025:8025
