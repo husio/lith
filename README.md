@@ -3,12 +3,12 @@
 # Lith
 
 
-Lith is an authentication service that integrates with your application. It is
-small, fast, self-contained and easy to configure.
+Lith is an authentication service. It is small, fast, self-contained and easy to configure.
 
 
 ## Features
 
+* **Open Source**
 * **Account registration** with email verification and a secure password setup.
 * **Account recovery** through password reset email message.
 * **Session management** including creation, introspection, expiration and revoking.
@@ -16,14 +16,14 @@ small, fast, self-contained and easy to configure.
 * **Two-factor** authentication using Time-based One-Time Password.
 * **Admin Panel** for managing the application.
 * **HTML and JSON** interfaces to integrate with your application.
-* **Open Source**
 * **Single dependency** (SMTP server), single static binary.
 
 
 ## Quick start
 
-Lith is a standalone service that can be incorporated into your setup in
-several ways. To run an example, execute `make run-demo`.
+Lith is a standalone service that can be integrated in many ways. You can start a generic demo instance by executing `make run-demo`.
+For more specific examples, see [examples](#examples) section.
+
 
 ## Examples
 
