@@ -48,7 +48,10 @@ TODO: admin password reset
 
 
 
-TODO: acme protocol support for automatic SSL granting
-TODO: after-registration webhook execution
+acme protocol support for automatic SSL granting
+after-registration webhook execution
+ssh integration (login/second factor)
+telegram integration (second factor)
+update CI to build artifacts: binary and docker image
 
 ^^^^^^^ random ideas ^^^^^^^
