@@ -30,15 +30,18 @@ func (f fs) Send(from, to, subject string, body []byte) error {
 	_, _ = fmt.Fprintf(fs, "From\t%s\n", from)
 	_, _ = fmt.Fprintf(fs, "To\t%s\n", to)
 	_, _ = fmt.Fprintf(fs, "Subject\t%s\n", subject)
-	_, _ = fmt.Fprintln(fs, "---")
+	_, _ = fmt.Fprintf(fs, "\n%s\n\n", strings.Repeat("@", 78))
 	_, _ = fmt.Fprintln(fs, string(body))
-	return fs.Close()
+	if err := fs.Close(); err != nil {
+		return fmt.Errorf("sync email file: %w", err)
+	}
+	return nil
 }
 
 func mailFilename(sub string) string {
 	name := regexp.MustCompile(`[^a-zA-Z0-9_]+`).ReplaceAllString(sub, "_")
 	name = regexp.MustCompile(`_+`).ReplaceAllString(name, "_")
 	name = strings.Trim(name, "_")
-	name = fmt.Sprintf("%s.%d.mail", name, time.Now().UnixNano())
+	name = fmt.Sprintf("%d_%s.email", time.Now().UnixNano(), name)
 	return name
 }

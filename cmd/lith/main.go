@@ -145,7 +145,7 @@ func availableCmds() []string {
 }
 
 // checkConfiguration does a very basic validity check for the configuration to
-// help avoid running obviously broken app.
+// help avoid running an obviously broken app.
 func checkConfiguration(c lith.Configuration) []string {
 	var issues []string
 
@@ -160,7 +160,17 @@ func checkConfiguration(c lith.Configuration) []string {
 	}
 
 	switch c.EmailBackend {
-	case "smtp", "fs":
+	case "smtp":
+		if c.SMTP.Host == "" {
+			issues = append(issues, `When using "smtp" email backend, SMTP.Host is required.`)
+		}
+		if c.SMTP.Port == 0 {
+			issues = append(issues, `When using "smtp" email backend, SMTP.Port is required.`)
+		}
+	case "fs":
+		if c.FilesystemEmail.Dir == "" {
+			issues = append(issues, `When using "fs" email backend, FilesystemEmail.Dir is required.`)
+		}
 	case "":
 		issues = append(issues, "EmailBackend is required.")
 	default:
@@ -179,6 +189,7 @@ func checkConfiguration(c lith.Configuration) []string {
 
 	appPrefix := make(map[string][][2]string)
 	for _, app := range apps {
+		// Validate only enabled applications.
 		if app.ListenHTTP == "" {
 			continue
 		}
@@ -190,7 +201,7 @@ func checkConfiguration(c lith.Configuration) []string {
 		case !strings.HasSuffix(app.PathPrefix, "/"):
 			issues = append(issues, app.Name+`.PathPrefix must end with "/"`)
 		}
-		for _, other := range appPrefix[c.API.ListenHTTP] {
+		for _, other := range appPrefix[app.ListenHTTP] {
 			if other[1] == app.PathPrefix {
 				issues = append(issues, app.Name+`.PathPrefix and `+other[0]+`.PathPrefix must not be the same.`)
 			}
@@ -198,11 +209,11 @@ func checkConfiguration(c lith.Configuration) []string {
 		appPrefix[app.ListenHTTP] = append(appPrefix[app.ListenHTTP], [2]string{app.Name, app.PathPrefix})
 	}
 
-	if _, err := regexp.Compile(c.PublicUI.AllowRegisterEmail); err != nil {
-		issues = append(issues, "PublicUI.AllowRegisterEmail is not a valid regular expression.")
-	}
-
+	// Only if public UI is enabled, validate its configuration.
 	if c.PublicUI.ListenHTTP != "" {
+		if _, err := regexp.Compile(c.PublicUI.AllowRegisterEmail); err != nil {
+			issues = append(issues, "PublicUI.AllowRegisterEmail is not a valid regular expression.")
+		}
 		if c.PublicUI.FromEmail == "" {
 			issues = append(issues, "PublicUI.FromEmail must not be empty.")
 		}
@@ -211,6 +222,7 @@ func checkConfiguration(c lith.Configuration) []string {
 		}
 	}
 
+	// Only if API is enabled, validate its configuration.
 	if c.API.ListenHTTP != "" {
 		if _, err := regexp.Compile(c.API.AllowRegisterEmail); err != nil {
 			issues = append(issues, "API.AllowRegisterEmail is not a valid regular expression.")

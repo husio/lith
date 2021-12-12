@@ -23,27 +23,7 @@ small, fast, self-contained and easy to configure.
 ## Quick start
 
 Lith is a standalone service that can be incorporated into your setup in
-several ways. It takes only 3 steps to have it running locally, ready to serve traffic.
-
-In order to run lith, you must create a configuration file. You can generate
-one using `print-config` command:
-
-    lith print-config > conf.toml
-
-Second configuration step is to add an administrator account that will be able
-to login to the admin panel.
-
-    lith -conf conf.toml useradd -email my.email@domain.com -password "t0psecret" -groups=1,2
-
-Finally, you can run the application and serve HTTP traffic:
-
-    lith -conf conf.toml serve
-
-Visit http://localhost:8000/admin/ and login with your admin account.
-
-The `examples/` directory contains demo applications that show how to
-integration with lith.
-
+several ways. To run an example, execute `make run-demo`.
 
 ## Examples
 

@@ -24,7 +24,7 @@ docker-image:
 
 run-lith:
 	@# https://github.com/cespare/reflex
-	reflex -s -R examples/ -- sh -c 'go run github.com/husio/lith/cmd/lith -conf examples/lith.conf serve'
+	reflex -s -- sh -c 'go run github.com/husio/lith/cmd/lith -conf examples/lith.conf serve'
 
 run-monitor-queue:
 	watch 'echo "select * from failures order by created_at desc limit 2" | sqlite3 /tmp/lith_taskqueue.sqlite3.db'
@@ -32,6 +32,20 @@ run-monitor-queue:
 run-test-mailserver:
 	@# 1025 is SMTP port, 8025 is for HTTP interface
 	docker run -p 11025:1025 -p 8025:8025 mailhog/mailhog
+
+run-demo: build-lith
+	@bin/lith -conf examples/lith.conf useradd -email admin@example.com -password "admin" -groups=1,2 -allow-insecure 2> /dev/null || true
+	@echo
+	@echo
+	@echo "Running public UI on http://localhost:8000/login/"
+	@echo "Running admin panel on http://localhost:8001"
+	@echo "Emails are written to /tmp/lith_outgoing_emails/"
+	@echo
+	@echo "Admin email is admin@example.com, password \"admin\""
+	@echo
+	@echo
+	@echo "Press Ctrl+c to stop the application."
+	@bin/lith -conf examples/lith.conf serve
 
 test:
 	go test -race -test.timeout 4m github.com/husio/lith/...
