@@ -1,0 +1,149 @@
+openapi: 3.0.1
+info:
+  title: Lith
+  license:
+    name:  GPL-3.0
+    url: https://github.com/husio/lith/blob/master/LICENSE
+  version: 1.0.0
+paths:
+  /sessions:
+    get:
+      summary: Introspect an existing Authentication Session.
+      responses:
+        401:
+          description: Provided Session is invalid.
+          content: {}
+        200:
+          description: Provided Session is valid and can be introspected.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+    post:
+      summary: Authenticate and create an new Authentication Session.
+      responses:
+        400:
+          $ref: '#/components/responses/BadInput'
+        401:
+          description: Invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        403:
+          description: Account cannot login due to missing permissions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        200:
+          description: Authentication was successful and a new Authentication Session token is returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+    delete:
+      summary: Delete Authentication Session.
+      responses:
+        404:
+          description: Presented Authentication Session does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        410:
+          description: Authentication Session was deleted and can no longer be used.
+  /twofactor:
+    get:
+      description: Check if Two-Factor authentication is enabled for this account.
+      responses:
+        200:
+          description: TODO
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                    description: Is Two-Factor enabled?
+        403:
+          description: Invalid or missing authentication credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      description: Enable Two-Factor authentication.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+              - secret
+              - code
+              type: object
+              properties:
+                secret:
+                  type: string
+                  description: A base32 encoded TOTP secret.
+                code:
+                  type: string
+                  description: 6-digit code generated using provided secret.
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        403:
+          description: Invalid or missing authentication credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        400:
+          description: Invalid or insufficient input data.
+        409:
+          description: Two-Factor authentication is already enabled for this account.
+
+
+
+
+
+components:
+  responses:
+    BadInput:
+      description: Operation cannot be completed because of invalid or insufficient input data.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: array
+          description: A list of one or more issues.
+          items:
+            type: string
+            description: Human readable description of the error.
+    Session:
+      required:
+      - session_id
+      - account_id
+      - permissions
+      type: object
+      properties:
+        session_id:
+          type: string
+          example: "25733635c3c497fbbd6107b1eb6b52e006cf1b3a"
+        account_id:
+          type: string
+          example: "0aa6d7f27c6665618e9d32b4b17c2cfc8651c1ec"
+        permissions:
+          type: array
+          example: ["login", "publish", "invite"]
+          items:
+            type: string
