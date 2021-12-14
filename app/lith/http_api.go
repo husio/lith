@@ -211,7 +211,7 @@ func (h apiPasswordResetComplete) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	case err == nil:
 		// All good.
 	case errors.Is(err, ErrNotFound):
-		web.WriteJSONErr(w, http.StatusBadRequest, "Invalid token.")
+		web.WriteJSONErr(w, http.StatusUnauthorized, "Invalid token.")
 		return
 	default:
 		alert.EmitErr(ctx, err, "Cannot get ephemeral token.")
@@ -229,7 +229,7 @@ func (h apiPasswordResetComplete) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	}
 
 	if account.Email != resetPasswordContext.Email {
-		web.WriteJSONErr(w, http.StatusBadRequest, "Account email was changed.")
+		web.WriteJSONErr(w, http.StatusConflict, "Account email was changed.")
 		return
 	}
 
@@ -396,7 +396,7 @@ func (h apiAccountCreateComplete) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	case err == nil:
 		// All good.
 	case errors.Is(err, ErrNotFound):
-		web.WriteJSONErr(w, http.StatusBadRequest, "Invalid token.")
+		web.WriteJSONErr(w, http.StatusUnauthorized, "Invalid token.")
 		return
 	default:
 		alert.EmitErr(ctx, err, "Cannot get ephemeral token.")
@@ -433,7 +433,7 @@ func (h apiAccountCreateComplete) ServeHTTP(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	web.WriteJSON(w, http.StatusOK, struct {
+	web.WriteJSON(w, http.StatusCreated, struct {
 		AccountID string `json:"account_id"`
 	}{
 		AccountID: account.AccountID,
@@ -491,7 +491,7 @@ func (h apiSessionDelete) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	sessionID, ok := CurrentSessionID(ctx)
 	if !ok {
-		web.WriteJSONStdErr(w, http.StatusNotFound)
+		web.WriteJSONStdErr(w, http.StatusUnauthorized)
 		return
 	}
 	db, err := h.store.Session(ctx)
@@ -506,7 +506,12 @@ func (h apiSessionDelete) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case err == nil:
 		// All good.
 	case errors.Is(err, ErrNotFound):
-		web.WriteJSONStdErr(w, http.StatusNotFound)
+		// This is a rare case when authentication was successful,
+		// validated by the middleware, but the session no longer
+		// exists in the database. Since the session is gone, operation
+		// can be considered successful and there is nothing else to
+		// do.
+		w.WriteHeader(http.StatusGone)
 		return
 	default:
 		alert.EmitErr(ctx, err, "Cannot delete auth sessions.",
@@ -786,7 +791,7 @@ func (h apiTwoFactorEnable) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case err == nil:
 			// All good.
 		case errors.Is(err, ErrNotFound):
-			web.WriteJSONErr(w, http.StatusBadRequest, "Invalid login and/or password.")
+			web.WriteJSONErr(w, http.StatusUnauthorized, "Invalid login and/or password.")
 			return
 		default:
 			alert.EmitErr(ctx, err, "Cannot get account by email.")
@@ -798,7 +803,7 @@ func (h apiTwoFactorEnable) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case err == nil:
 			// All good.
 		case errors.Is(err, ErrPassword):
-			web.WriteJSONErr(w, http.StatusBadRequest, "Invalid login and/or password.")
+			web.WriteJSONErr(w, http.StatusUnauthorized, "Invalid login and/or password.")
 			return
 		default:
 			alert.EmitErr(ctx, err, "Cannot compare account password.",

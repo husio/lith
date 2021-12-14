@@ -16,6 +16,11 @@ build-%:
 	mkdir -p bin
 	CGO_ENABLED=1 go build -ldflags="-X 'main.sourceHash=${VERSION}'" -o bin/${*} github.com/husio/lith/cmd/${*}
 
+build-docs:
+	cat docs/_template/header.html > docs/docs.html
+	rendermarkdown < docs/docs.md >> docs/docs.html
+	cat docs/_template/footer.html >> docs/docs.html
+
 vendor:
 	go mod tidy && go mod vendor && go mod verify
 
