@@ -48,6 +48,8 @@ TODO: admin password reset
 
 
 
+update returned JSON error, separate general error and validation errors
+add expiration information to session response
 acme protocol support for automatic SSL granting
 after-registration webhook execution
 ssh integration (login/second factor)

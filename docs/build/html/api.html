@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html >
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>JSON API</title>
+    
+          <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+          <link rel="stylesheet" href="_static/theme.css " type="text/css" />
+          <link rel="stylesheet" href="_static/sphinxcontrib-httpexample.css" type="text/css" />
+          <link rel="stylesheet" href="_static/css/custom.css" type="text/css" />
+      
+      <!-- sphinx script_files -->
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinxcontrib-httpexample.js"></script>
+
+      
+      <!-- bundled in js (rollup iife) -->
+      <!-- <script src="_static/theme-vendors.js"></script> -->
+      <script src="_static/theme.js" defer></script>
+    
+  <link rel="index" title="Index" href="genindex.html" />
+  <link rel="search" title="Search" href="search.html" />
+  <link rel="prev" title="Welcome to Lith’s documentation!" href="index.html" /> 
+  </head>
+
+  <body>
+    <div id="app">
+    <div class="theme-container" :class="pageClasses"><navbar @toggle-sidebar="toggleSidebar">
+  <router-link to="index.html" class="home-link">
+    
+      <span class="site-name">Lith</span>
+    
+  </router-link>
+
+  <div class="links">
+    <navlinks class="can-hide">
+
+
+
+  
+    <div class="nav-item">
+      <a href="https://github.com/husio/lith"
+        class="nav-link external">
+          GitHub <outboundlink></outboundlink>
+      </a>
+    </div>
+  
+
+    </navlinks>
+  </div>
+</navbar>
+
+      
+      <div class="sidebar-mask" @click="toggleSidebar(false)">
+      </div>
+        <sidebar @toggle-sidebar="toggleSidebar">
+          
+          <navlinks>
+            
+
+
+
+  
+    <div class="nav-item">
+      <a href="https://github.com/husio/lith"
+        class="nav-link external">
+          GitHub <outboundlink></outboundlink>
+      </a>
+    </div>
+  
+
+            
+          </navlinks><div id="searchbox" class="searchbox" role="search">
+  <div class="caption"><span class="caption-text">Quick search</span>
+    <div class="searchformwrapper">
+      <form class="search" action="search.html" method="get">
+        <input type="text" name="q" />
+        <input type="submit" value="Search" />
+        <input type="hidden" name="check_keywords" value="yes" />
+        <input type="hidden" name="area" value="default" />
+      </form>
+    </div>
+  </div>
+</div><div class="sidebar-links" role="navigation" aria-label="main navigation">
+  
+    <div class="sidebar-group">
+      <p class="caption">
+        <span class="caption-text"><a href="index.html#welcome-to-lith-s-documentation">Contents:</a></span>
+      </p>
+      <ul class="current">
+        
+          <li class="toctree-l1 current">
+            
+              <a href="#" class="reference internal current">JSON API</a>
+            
+
+            
+              <ul>
+                
+                  <li class="toctree-l2"><a href="#authentication" class="reference internal">Authentication</a></li>
+                
+                  <li class="toctree-l2"><a href="#error-response" class="reference internal">Error response</a></li>
+                
+                  <li class="toctree-l2"><a href="#authentication-session-management" class="reference internal">Authentication Session management</a></li>
+                
+                  <li class="toctree-l2"><a href="#two-factor-authentication" class="reference internal">Two Factor authentication</a></li>
+                
+                  <li class="toctree-l2"><a href="#account-management" class="reference internal">Account management</a></li>
+                
+              </ul>
+            
+          </li>
+
+        
+      </ul>
+    </div>
+  
+</div>
+        </sidebar>
+
+      <page>
+          <div class="body-header" role="navigation" aria-label="navigation">
+  
+  <ul class="breadcrumbs">
+    <li><a href="index.html">Docs</a> &raquo;</li>
+    
+    <li>JSON API</li>
+  </ul>
+  
+
+  <ul class="page-nav">
+  <li class="prev">
+    <a href="index.html"
+       title="previous chapter">← Welcome to Lith’s documentation!</a>
+  </li>
+</ul>
+  
+</div>
+<hr>
+          <div class="content" role="main" v-pre>
+            
+  <div class="section" id="json-api">
+<h1>JSON API<a class="headerlink" href="#json-api" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="authentication">
+<h2>Authentication<a class="headerlink" href="#authentication" title="Permalink to this headline">¶</a></h2>
+<p>Authentication is done by providing a valid Authentication Session identifier.
+An Authentication Session identifier is a 16 bytes value encoded as 32 characters string, for example <code class="docutils literal notranslate"><span class="pre">122813edb8dea90702d2bffb90cf3e8b</span></code>.</p>
+<p>Authentication Session identifier must be presented either by using HTTP <cite>Authorization</cite> header or a HTTP cookie.</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">Authorization</span></code> header is used, <code class="docutils literal notranslate"><span class="pre">Bearer</span></code> auth schema is expected, for example <code class="docutils literal notranslate"><span class="pre">Authorization:</span> <span class="pre">Bearer</span> <span class="pre">122813edb8dea90702d2bffb90cf3e8b</span></code>.</p>
+<p>When cookie is used, <code class="docutils literal notranslate"><span class="pre">s</span></code> key should be set to the identifier value, for example <code class="docutils literal notranslate"><span class="pre">Cookie:</span> <span class="pre">s=122813edb8dea90702d2bffb90cf3e8b</span></code>.</p>
+</div>
+<div class="section" id="error-response">
+<span id="id1"></span><h2>Error response<a class="headerlink" href="#error-response" title="Permalink to this headline">¶</a></h2>
+<p>There are two formats an error message can follow, depending on the cause.</p>
+<div class="section" id="general-error">
+<span id="id2"></span><h3>General error<a class="headerlink" href="#general-error" title="Permalink to this headline">¶</a></h3>
+<p>If error response is caused by any other, non validation related issue, general error schema is used to format the response payload.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;Human readable error description.&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="validation-error">
+<span id="id3"></span><h3>Validation error<a class="headerlink" href="#validation-error" title="Permalink to this headline">¶</a></h3>
+<p>If error response is caused by incomplete or invalid input data, a validation error schema is used to format the response payload.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;field-name&quot;</span><span class="p">:</span> <span class="s2">&quot;Human readable error description.&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;another-field-name&quot;</span><span class="p">:</span> <span class="s2">&quot;Human readable error description.&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="authentication-session-management">
+<h2>Authentication Session management<a class="headerlink" href="#authentication-session-management" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="create-a-new-authentication-session">
+<h3>Create a new Authentication Session<a class="headerlink" href="#create-a-new-authentication-session" title="Permalink to this headline">¶</a></h3>
+<dl class="http post">
+<dt class="sig sig-object http" id="post--sessions">
+<span class="sig-name descname"><span class="pre">POST</span> </span><span class="sig-name descname"><span class="pre">/sessions</span></span><a class="headerlink" href="#post--sessions" title="Permalink to this definition">¶</a></dt>
+<dd><p>To create a new Authentication Session, send you authentication credentials.
+If Two-Factor authentication is enabled, you must additionally send a generated <a class="reference external" href="https://en.wikipedia.org/wiki/Time-based_One-time_Password">Time-based One-Time Password</a> <code class="docutils literal notranslate"><span class="pre">code</span></code>.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http notranslate"><div class="highlight"><pre><span></span><span class="nf">POST</span> <span class="nn">/sessions</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="p">{</span>
+  <span class="nt">&quot;email&quot;</span><span class="p">:</span> <span class="s2">&quot;admin@example.com&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;password&quot;</span><span class="p">:</span> <span class="s2">&quot;admin&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;code&quot;</span><span class="p">:</span> <span class="s2">&quot;123456&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Request JSON Object</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>email</strong> (<em>string</em>) – The email used to register the account.</p></li>
+<li><p><strong>password</strong> (<em>string</em>) – The account password in plain text.</p></li>
+<li><p><strong>code</strong> (<em>string</em>) – Required if two-factor is enabled. A generated, 6-digit <abbr title="Time-based One-Time Passwords">TOTP</abbr> token.</p></li>
+</ul>
+</dd>
+</dl>
+<p><strong>Example response body</strong>:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;account_id&quot;</span><span class="p">:</span> <span class="s2">&quot;1ad4ce82183f3c5027a96883bac1d7e2&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;session_id&quot;</span><span class="p">:</span> <span class="s2">&quot;122813edb8dea90702d2bffb90cf3e8b&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;permissions&quot;</span><span class="p">:</span> <span class="p">[</span>
+    <span class="s2">&quot;lith-admin&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;login&quot;</span>
+  <span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Response JSON Object</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>account_id</strong> (<em>string</em>) – The identifier of the account that this authentication session represents.</p></li>
+<li><p><strong>session_id</strong> (<em>string</em>) – The identifier of this authentication session.</p></li>
+<li><p><strong>permissions</strong> (<em>list of strings</em>) – A list of permissions that this session grants.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Status Codes</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.2">201 Created</a></span> – An Authentication Session was successfully created.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.1">400 Bad Request</a></span> – Incomplete, invalid or malformed JSON payload. See <a class="reference internal" href="#error-response"><span class="std std-ref">Error response</span></a> section for details.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.4">403 Forbidden</a></span> – Account cannot login due to missing permissions.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="introspect-an-existing-authentication-session">
+<h3>Introspect an existing Authentication Session<a class="headerlink" href="#introspect-an-existing-authentication-session" title="Permalink to this headline">¶</a></h3>
+<dl class="http get">
+<dt class="sig sig-object http" id="get--sessions">
+<span class="sig-name descname"><span class="pre">GET</span> </span><span class="sig-name descname"><span class="pre">/sessions</span></span><a class="headerlink" href="#get--sessions" title="Permalink to this definition">¶</a></dt>
+<dd><p>An existing Authentication Session can be introspected.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http notranslate"><div class="highlight"><pre><span></span><span class="nf">GET</span> <span class="nn">/sessions</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Authorization</span><span class="o">:</span> <span class="l">Bearer 122813edb8dea90702d2bffb90cf3e8b</span>
+</pre></div>
+</div>
+<p><strong>Example response body</strong>:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;account_id&quot;</span><span class="p">:</span> <span class="s2">&quot;1ad4ce82183f3c5027a96883bac1d7e2&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;session_id&quot;</span><span class="p">:</span> <span class="s2">&quot;122813edb8dea90702d2bffb90cf3e8b&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;permissions&quot;</span><span class="p">:</span> <span class="p">[</span>
+    <span class="s2">&quot;lith-admin&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;login&quot;</span>
+  <span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Response JSON Object</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>account_id</strong> (<em>string</em>) – The identifier of the account that this authentication session represents.</p></li>
+<li><p><strong>session_id</strong> (<em>string</em>) – The identifier of this authentication session.</p></li>
+<li><p><strong>permissions</strong> (<em>list of strings</em>) – A list of permissions that this session grants.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Status Codes</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a></span> – Authentication Session is valid and was successfully introspected.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.2">401 Unauthorized</a></span> – A valid Authentication Session was not provided.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="terminate-an-existing-authentication-session">
+<h3>Terminate an existing Authentication Session<a class="headerlink" href="#terminate-an-existing-authentication-session" title="Permalink to this headline">¶</a></h3>
+<dl class="http delete">
+<dt class="sig sig-object http" id="delete--sessions">
+<span class="sig-name descname"><span class="pre">DELETE</span> </span><span class="sig-name descname"><span class="pre">/sessions</span></span><a class="headerlink" href="#delete--sessions" title="Permalink to this definition">¶</a></dt>
+<dd><p>An existing Authentication Session can be terminated.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http notranslate"><div class="highlight"><pre><span></span><span class="nf">DELETE</span> <span class="nn">/sessions</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Authorization</span><span class="o">:</span> <span class="l">Bearer 122813edb8dea90702d2bffb90cf3e8b</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Status Codes</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.5">204 No Content</a></span> – Authentication Session is valid and was successfully deleted.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.2">401 Unauthorized</a></span> – A valid Authentication Session was not provided.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</div>
+<div class="section" id="two-factor-authentication">
+<h2>Two Factor authentication<a class="headerlink" href="#two-factor-authentication" title="Permalink to this headline">¶</a></h2>
+<p>Currently, Lith supports only <a class="reference external" href="https://en.wikipedia.org/wiki/Time-based_One-time_Password">Time-based One-Time Passwords</a> as the second factor.</p>
+<p>It is recommended to use an application on your phone to manage and generate <abbr title="Time-based One-Time Passwords">TOTP</abbr> tokens.</p>
+<div class="section" id="check-if-two-factor-authentication-is-enabled">
+<h3>Check if Two-Factor authentication is enabled<a class="headerlink" href="#check-if-two-factor-authentication-is-enabled" title="Permalink to this headline">¶</a></h3>
+<dl class="http get">
+<dt class="sig sig-object http" id="get--twofactor">
+<span class="sig-name descname"><span class="pre">GET</span> </span><span class="sig-name descname"><span class="pre">/twofactor</span></span><a class="headerlink" href="#get--twofactor" title="Permalink to this definition">¶</a></dt>
+<dd><p>User can check if two-factor authentication is enabled for the account.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http notranslate"><div class="highlight"><pre><span></span><span class="nf">GET</span> <span class="nn">/twofactor</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Authorization</span><span class="o">:</span> <span class="l">Bearer 122813edb8dea90702d2bffb90cf3e8b</span>
+</pre></div>
+</div>
+<p><strong>Example response body</strong>:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;enabled&quot;</span><span class="p">:</span> <span class="kc">false</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Response JSON Object</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>enabled</strong> (<em>boolean</em>) – True if two-factor authentication is enabled and required.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Status Codes</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a></span> – A successful response contains information if the two-factor authentication is enabled for this account.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.2">401 Unauthorized</a></span> – A valid Authentication Session was not provided.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="enable-two-factor-authentication">
+<h3>Enable Two-Factor authentication<a class="headerlink" href="#enable-two-factor-authentication" title="Permalink to this headline">¶</a></h3>
+<dl class="http post">
+<dt class="sig sig-object http" id="post--twofactor">
+<span class="sig-name descname"><span class="pre">POST</span> </span><span class="sig-name descname"><span class="pre">/twofactor</span></span><a class="headerlink" href="#post--twofactor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Any account can enable two-factor authentication.
+Once enabled, two-factor authentication secret cannot be changed or deleted.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http notranslate"><div class="highlight"><pre><span></span><span class="nf">POST</span> <span class="nn">/twofactor</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Authorization</span><span class="o">:</span> <span class="l">Bearer 122813edb8dea90702d2bffb90cf3e8b</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="p">{</span>
+  <span class="nt">&quot;secret&quot;</span><span class="p">:</span> <span class="s2">&quot;base32-encoded-data&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;code&quot;</span><span class="p">:</span> <span class="s2">&quot;123456&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Request JSON Object</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>secret</strong> (<em>string</em>) – A <a class="reference external" href="https://en.wikipedia.org/wiki/Base32">base32</a> encoded secret value.</p></li>
+<li><p><strong>code</strong> (<em>string</em>) – The current <abbr title="Time-based One-Time Passwords">TOTP</abbr> code generated using <cite>secret</cite>.</p></li>
+</ul>
+</dd>
+</dl>
+<p>In order to enable two-factor authentication, you must authenticate.
+If two-factor authentication is required, you can no longer create a new authentication session.
+If this is the case, only for this endpoint, you can directly send your <cite>email</cite> and <cite>password</cite> as an alternative authentication method.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http notranslate"><div class="highlight"><pre><span></span><span class="nf">POST</span> <span class="nn">/twofactor</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="p">{</span>
+  <span class="nt">&quot;secret&quot;</span><span class="p">:</span> <span class="s2">&quot;base32-encoded-data&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;code&quot;</span><span class="p">:</span> <span class="s2">&quot;123456&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;email&quot;</span><span class="p">:</span> <span class="s2">&quot;user@example.com&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;password&quot;</span><span class="p">:</span> <span class="s2">&quot;t0pSecret&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Request JSON Object</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>secret</strong> (<em>string</em>) – A <a class="reference external" href="https://en.wikipedia.org/wiki/Base32">base32</a> encoded secret value.</p></li>
+<li><p><strong>code</strong> (<em>string</em>) – The current, 6-digit <abbr title="Time-based One-Time Passwords">TOTP</abbr> code generated using provided <code class="docutils literal notranslate"><span class="pre">secret</span></code>.</p></li>
+<li><p><strong>email</strong> (<em>string</em>) – An email address used for the account registration.</p></li>
+<li><p><strong>password</strong> (<em>string</em>) – Account password in plain text.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Status Codes</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.2">201 Created</a></span> – Two-factor authentication was successfully enabled for this account. No payload is returned.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.1">400 Bad Request</a></span> – An incomplete or malformed input. See <a class="reference internal" href="#error-response"><span class="std std-ref">Error response</span></a> section for details.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.2">401 Unauthorized</a></span> – A valid authentication credentials were not provided.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.10">409 Conflict</a></span> – Two-factor authentication is already enabled for this account.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</div>
+<div class="section" id="account-management">
+<h2>Account management<a class="headerlink" href="#account-management" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="create-a-new-account">
+<h3>Create a new account<a class="headerlink" href="#create-a-new-account" title="Permalink to this headline">¶</a></h3>
+<dl class="http post">
+<dt class="sig sig-object http" id="post--accounts">
+<span class="sig-name descname"><span class="pre">POST</span> </span><span class="sig-name descname"><span class="pre">/accounts</span></span><a class="headerlink" href="#post--accounts" title="Permalink to this definition">¶</a></dt>
+<dd><p>Account creation is a two step operation and require email address confirmation.</p>
+<p>First, you must submit your email address that you would like to use to register a new account.
+After this, you will receive an email message with a link to finish registration process.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http notranslate"><div class="highlight"><pre><span></span><span class="nf">POST</span> <span class="nn">/accounts</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="p">{</span>
+  <span class="nt">&quot;email&quot;</span><span class="p">:</span> <span class="s2">&quot;user@example.com&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Request JSON Object</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>email</strong> (<em>string</em>) – An email address that should be used to authenticate.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Status Codes</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.3">202 Accepted</a></span> – Registration was initialized, email message with a one-time registration token was sent. No response payload.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.1">400 Bad Request</a></span> – Incomplete, invalid or malformed JSON payload.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.10">409 Conflict</a></span> – Provided email is already used by another account.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="http put">
+<dt class="sig sig-object http" id="put--accounts">
+<span class="sig-name descname"><span class="pre">PUT</span> </span><span class="sig-name descname"><span class="pre">/accounts</span></span><a class="headerlink" href="#put--accounts" title="Permalink to this definition">¶</a></dt>
+<dd><p>Received email message will contain a URL with one-time registration token.
+Your application is responsible for handling that URL and extracting registration token.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http notranslate"><div class="highlight"><pre><span></span><span class="nf">PUT</span> <span class="nn">/accounts</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="p">{</span>
+  <span class="nt">&quot;password&quot;</span><span class="p">:</span> <span class="s2">&quot;t0pSecret&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;token&quot;</span><span class="p">:</span> <span class="s2">&quot;fdf1033a39a0ffae50784b44909a97bd&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Request JSON Object</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>password</strong> (<em>string</em>) – A plain text password that will be set for this account.</p></li>
+<li><p><strong>token</strong> (<em>string</em>) – The one-time token sent via email.</p></li>
+</ul>
+</dd>
+</dl>
+<p><strong>Example response body</strong>:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;account_id&quot;</span><span class="p">:</span> <span class="s2">&quot;8138177c4fa45ce839d158374d1601c9&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Response JSON Object</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>account_id</strong> (<em>string</em>) – The identifier of the newly created account.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Status Codes</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.2">201 Created</a></span> – Successful registration. New account email/password combination can be used to login.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.1">400 Bad Request</a></span> – Incomplete, invalid or malformed JSON payload.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.2">401 Unauthorized</a></span> – Provided one-time token is invalid or expired.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.10">409 Conflict</a></span> – Provided email is already used by another account.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="reset-an-account-password">
+<h3>Reset an account password<a class="headerlink" href="#reset-an-account-password" title="Permalink to this headline">¶</a></h3>
+<dl class="http post">
+<dt class="sig sig-object http" id="post--passwordreset">
+<span class="sig-name descname"><span class="pre">POST</span> </span><span class="sig-name descname"><span class="pre">/passwordreset</span></span><a class="headerlink" href="#post--passwordreset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Account password reset is a two step operation.</p>
+<p><strong>Example request</strong>:</p>
+<div class="highlight-http notranslate"><div class="highlight"><pre><span></span><span class="nf">POST</span> <span class="nn">/passwordreset</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="p">{</span>
+  <span class="nt">&quot;email&quot;</span><span class="p">:</span> <span class="s2">&quot;user@example.com&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Response JSON Object</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>email</strong> (<em>string</em>) – The email address connected to the account we want to access.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Status Codes</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.3">202 Accepted</a></span> – Password reset was initialized, email message with a one-time token was sent. No response payload.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.1">400 Bad Request</a></span> – Incomplete, invalid or malformed JSON payload.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="http put">
+<dt class="sig sig-object http" id="put--passwordreset">
+<span class="sig-name descname"><span class="pre">PUT</span> </span><span class="sig-name descname"><span class="pre">/passwordreset</span></span><a class="headerlink" href="#put--passwordreset" title="Permalink to this definition">¶</a></dt>
+<dd><p><strong>Example request</strong>:</p>
+<div class="highlight-http notranslate"><div class="highlight"><pre><span></span><span class="nf">PUT</span> <span class="nn">/passwordreset</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="p">{</span>
+  <span class="nt">&quot;password&quot;</span><span class="p">:</span> <span class="s2">&quot;t0pSecret&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;token&quot;</span><span class="p">:</span> <span class="s2">&quot;fdf1033a39a0ffae50784b44909a97bd&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Request JSON Object</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>password</strong> (<em>string</em>) – A plain text password that will be set for this account.</p></li>
+<li><p><strong>token</strong> (<em>string</em>) – The one-time token sent via email.</p></li>
+</ul>
+</dd>
+</dl>
+<p><strong>Example response body</strong>:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;account_id&quot;</span><span class="p">:</span> <span class="s2">&quot;8138177c4fa45ce839d158374d1601c9&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Response JSON Object</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>account_id</strong> (<em>string</em>) – The identifier of the newly created account.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Status Codes</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a></span> – A new account password is set.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.2">401 Unauthorized</a></span> – Provided one-time token is invalid or expired.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.10">409 Conflict</a></span> – Account email address has changed since the one-time token was generated. You must request a new password reset token.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</div>
+</div>
+
+
+          </div>
+          <div class="page-nav">
+            <div class="inner"><ul class="page-nav">
+  <li class="prev">
+    <a href="index.html"
+       title="previous chapter">← Welcome to Lith’s documentation!</a>
+  </li>
+</ul><div class="footer" role="contentinfo">
+      &#169; Copyright 2021, Piotr Husiatyński.
+    <br>
+    Created using <a href="http://sphinx-doc.org/">Sphinx</a> 4.3.1 with <a href="https://github.com/schettino72/sphinx_press_theme">Press Theme</a> 0.8.0.
+</div>
+            </div>
+          </div>
+      </page>
+    </div></div>
+    
+    
+  </body>
+</html>
