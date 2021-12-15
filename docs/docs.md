@@ -173,14 +173,11 @@ curl "$lith_api/twofactor" \
   -d '{"secret": "base32-encoded-data", "code": "123456", "email": "user@example.com", "password": "t0pSecret"}'
 ```
 
-
-
-Code | Description
------|------------
- 201 | Two-factor authentication was successfully enabled for this account. No payload is returned.
- 400 | An incomplete or malformed input. See [error response](#error-response) section for details.
- 401 | A valid authentication credentials were not provided.
- 409 | Two-factor authentication is already enabled for this account.
+Response status codes:
+* 201 - Two-factor authentication was successfully enabled for this account. No payload is returned.
+* 400 - An incomplete or malformed input. See [error response](#error-response) section for details.
+* 401 - A valid authentication credentials were not provided.
+* 409 - Two-factor authentication is already enabled for this account.
 
 
 ## Account management
@@ -199,11 +196,10 @@ curl "$lith_api/accounts" \
   -d '{"email": "user@example.com"}'
 ```
 
-Code | Description
------|------------
- 202 | Registration was initialized, email message with a one-time registration token was sent. No response payload.
- 400 | Incomplete, invalid or malformed JSON payload.
- 409 | Provided email is already used by another account.
+Response status codes:
+* 202 - Registration was initialized, email message with a one-time registration token was sent. No response payload.
+* 400 - Incomplete, invalid or malformed JSON payload.
+* 409 - Provided email is already used by another account.
 
 
 Received email message will contain a URL with one-time registration token.
@@ -215,12 +211,11 @@ curl "$lith_api/accounts" \
   -d '{"password": "t0pSecret", "token": "fdf1033a39a0ffae50784b44909a97bd"}'
 ```
 
-Code | Description
------|------------
- 201 | Successful registration. New account email/password combination can be used to login.
- 400 | Incomplete, invalid or malformed JSON payload.
- 401 | Provided one-time token is invalid or expired.
- 409 | Provided email is already used by another account.
+Response status codes:
+* 201 - Successful registration. New account email/password combination can be used to login.
+* 400 - Incomplete, invalid or malformed JSON payload.
+* 401 - Provided one-time token is invalid or expired.
+* 409 - Provided email is already used by another account.
 
 ```json
 {
@@ -238,10 +233,8 @@ curl "$lith_api/passwordreset" \
   -d '{"email": "user@example.com"}'
 ```
 
-Code | Description
------|------------
- 202 | Password reset was initialized, email message with a one-time token was sent. No response payload.
- 400 | Incomplete, invalid or malformed JSON payload.
+* 202 - Password reset was initialized, email message with a one-time token was sent. No response payload.
+* 400 - Incomplete, invalid or malformed JSON payload.
 
 
 ```shell
@@ -250,11 +243,10 @@ curl "$lith_api/passwordreset" \
   -d '{"password": "t0pSecret", "token": "fdf1033a39a0ffae50784b44909a97bd"}'
 ```
 
-Code | Description
------|------------
- 200 | A new account password is set.
- 401 | Provided one-time token is invalid or expired.
- 409 | Account email address has changed since the one-time token was generated. You must request a new password reset token.
+Response status codes:
+* 200 - A new account password is set.
+* 401 - Provided one-time token is invalid or expired.
+* 409 - Account email address has changed since the one-time token was generated. You must request a new password reset token.
 
 ```json
 {
