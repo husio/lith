@@ -91,9 +91,9 @@ func (h apiPasswordResetInit) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	var errs validation.Errors
 	input.Email = normalizeEmail(input.Email)
 	if input.Email == "" {
-		errs = errs.WithRequired("email")
+		errs.AddRequired("email")
 	}
-	if len(errs) != 0 {
+	if !errs.Empty() {
 		web.WriteJSON(w, http.StatusBadRequest, errs)
 		return
 	}
@@ -181,15 +181,14 @@ func (h apiPasswordResetComplete) ServeHTTP(w http.ResponseWriter, r *http.Reque
 
 	var errs validation.Errors
 	if input.Token == "" {
-		errs = errs.WithRequired("token")
+		errs.AddRequired("token")
 	}
 	if input.Password == "" {
-		errs = errs.WithRequired("password")
+		errs.AddRequired("password")
 	} else if len(input.Password) < int(h.conf.MinPasswordLength) {
-		errs = errs.With("password",
-			fmt.Sprintf("Too short. Must be at least %d characters.", h.conf.MinPasswordLength))
+		errs.Add("password", "Too short. Must be at least %d characters.", h.conf.MinPasswordLength)
 	}
-	if len(errs) != 0 {
+	if !errs.Empty() {
 		web.WriteJSON(w, http.StatusBadRequest, errs)
 		return
 	}
@@ -274,11 +273,11 @@ func (h apiAccountCreateInit) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	var errs validation.Errors
 	input.Email = normalizeEmail(input.Email)
 	if input.Email == "" {
-		errs = errs.WithRequired("email")
+		errs.AddRequired("email")
 	} else if ok, _ := regexp.MatchString(h.conf.AllowRegisterEmail, input.Email); !ok {
-		errs = errs.With("email", "Email address not allowed to register.")
+		errs.Add("email", "Email address not allowed to register.")
 	}
-	if len(errs) != 0 {
+	if !errs.Empty() {
 		web.WriteJSON(w, http.StatusBadRequest, errs)
 		return
 	}
@@ -363,18 +362,17 @@ func (h apiAccountCreateComplete) ServeHTTP(w http.ResponseWriter, r *http.Reque
 
 	var errs validation.Errors
 	if input.Token == "" {
-		errs = errs.WithRequired("password")
+		errs.AddRequired("password")
 	}
 	switch n := len(input.Password); {
 	case n == 0:
-		errs = errs.WithRequired("password")
+		errs.AddRequired("password")
 	case n < int(h.conf.MinPasswordLength):
-		errs = errs.With("password",
-			fmt.Sprintf("Too short. Must be at least %d characters.", h.conf.MinPasswordLength))
+		errs.Add("password", "Too short. Must be at least %d characters.", h.conf.MinPasswordLength)
 	case n > 256:
-		errs = errs.With("password", "Too long. Must not be more than 256 characters.")
+		errs.Add("password", "Too long. Must not be more than 256 characters.")
 	}
-	if len(errs) != 0 {
+	if !errs.Empty() {
 		web.WriteJSON(w, http.StatusBadRequest, errs)
 		return
 	}
@@ -548,17 +546,17 @@ func (h apiSessionCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var errs validation.Errors
 	input.Email = normalizeEmail(input.Email)
 	if input.Email == "" {
-		errs = errs.WithRequired("email")
+		errs.AddRequired("email")
 	}
 	if input.Password == "" {
-		errs = errs.WithRequired("password")
+		errs.AddRequired("password")
 	}
 
 	// Before validating password, we cannot know if account requires
 	// two-factor code. Validation of Code must be postponed.
 	input.Code = strings.TrimSpace(input.Code)
 
-	if len(errs) != 0 {
+	if !errs.Empty() {
 		web.WriteJSON(w, http.StatusBadRequest, errs)
 		return
 	}
@@ -607,8 +605,8 @@ func (h apiSessionCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch totpSecret, err := session.AccountTOTPSecret(ctx, account.AccountID); {
 	case err == nil:
 		if input.Code == "" {
-			web.WriteJSON(w, http.StatusUnauthorized,
-				validation.Errors{}.WithRequired("code"))
+			errs.AddRequired("code")
+			web.WriteJSON(w, http.StatusUnauthorized, errs)
 			return
 		}
 		switch err := totp.Validate(ctx, h.cache, input.Code, totpSecret); {
@@ -735,28 +733,28 @@ func (h apiTwoFactorEnable) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		account = nil
 		input.Email = normalizeEmail(input.Email)
 		if len(input.Email) == 0 {
-			errs = errs.WithRequired("email")
+			errs.AddRequired("email")
 		}
 		if len(input.Password) == 0 {
-			errs = errs.WithRequired("password")
+			errs.AddRequired("password")
 		}
 	}
 
 	input.Code = strings.TrimSpace(input.Code)
 	if input.Code == "" {
-		errs = errs.WithRequired("code")
+		errs.AddRequired("code")
 	} else if !regexp.MustCompile(`\d{6}`).MatchString(input.Code) {
-		errs = errs.With("code", "Must be 6 digits")
+		errs.Add("code", "Must be 6 digits.")
 	}
 
 	if input.Secret == "" {
-		errs = errs.WithRequired("secret")
+		errs.AddRequired("secret")
 		web.WriteJSON(w, http.StatusBadRequest, errs)
 		return
 	}
 	totpSecret, err := base32.StdEncoding.DecodeString(input.Secret)
 	if err != nil {
-		errs = errs.With("secret", "Must be a base32 encoded value.")
+		errs.Add("secret", "Must be a base32 encoded value.")
 		web.WriteJSON(w, http.StatusBadRequest, errs)
 		return
 	}
@@ -765,10 +763,10 @@ func (h apiTwoFactorEnable) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		maxLen = 64
 	)
 	if n := len(totpSecret); n < minLen || n > maxLen {
-		errs = errs.With("secret", fmt.Sprintf("Must be between %d and %d bytes long.", minLen, maxLen))
+		errs.Add("secret", "Must be between %d and %d bytes long.", minLen, maxLen)
 	}
 
-	if len(errs) != 0 {
+	if !errs.Empty() {
 		web.WriteJSON(w, http.StatusBadRequest, errs)
 		return
 	}

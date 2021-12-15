@@ -26,7 +26,7 @@ There are two formats an error message can follow, depending on the cause.
 General error
 ^^^^^^^^^^^^^
 
-If error response is caused by any other, non validation related issue, general error schema is used to format the response payload.
+If error response is caused by a non validation related issue, general error schema is used to format the response payload.
 
 .. code-block:: json
 
@@ -40,14 +40,21 @@ If error response is caused by any other, non validation related issue, general 
 Validation error
 ^^^^^^^^^^^^^^^^
 
-If error response is caused by incomplete or invalid input data, a validation error schema is used to format the response payload.
+If error response is caused by an incomplete or an invalid input data, a validation error schema is used to format the response payload.
 
 
 .. code-block:: json
 
     {
-      "field-name": "Human readable error description.",
-      "another-field-name": "Human readable error description."
+      "validation": {
+        "email": [
+          "Required."
+        ],
+        "password": [
+          "Must be at least 12 characters long.",
+          "Must meet complexity requirements."
+        ]
+      }
     }
 
 

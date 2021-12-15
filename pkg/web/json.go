@@ -19,6 +19,8 @@ func WriteJSON(w http.ResponseWriter, code int, content interface{}) {
 	w.WriteHeader(code)
 
 	_, _ = w.Write(b)
+	// Be nice to CLI.
+	_, _ = w.Write([]byte{'\n'})
 }
 
 func WriteJSONErr(w http.ResponseWriter, code int, message string) {
@@ -36,6 +38,7 @@ func WriteJSONErr(w http.ResponseWriter, code int, message string) {
 
 func WriteJSONStdErr(w http.ResponseWriter, code int) {
 	// This is a bit useless payload, because its the default code, but it
-	// looks nice.
+	// looks nice and when using CLI you don't always print out response
+	// status code.
 	WriteJSONErr(w, code, http.StatusText(code))
 }

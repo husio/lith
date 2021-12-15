@@ -755,10 +755,10 @@ func (h adminAccountCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	templateContext.Email = normalizeEmail(r.Form.Get("email"))
 	if templateContext.Email == "" {
-		templateContext.Errors = templateContext.Errors.WithRequired("email")
+		templateContext.Errors.AddRequired("email")
 	}
 
-	if len(templateContext.Errors) != 0 {
+	if !templateContext.Errors.Empty() {
 		tmpl.Render(w, http.StatusOK, "admin_account_create.html", templateContext)
 		return
 	}
@@ -998,16 +998,16 @@ func (h adminPermissionGroupCreate) ServeHTTP(w http.ResponseWriter, r *http.Req
 		validPermission := regexp.MustCompile(`[a-zA-Z0-9\-_\.:]+`)
 		for _, p := range templateContext.Permissions {
 			if !validPermission.MatchString(p) {
-				templateContext.Errors = templateContext.Errors.With("permissions", fmt.Sprintf("%q is not a valid permission name.", p))
+				templateContext.Errors.Add("permissions", "%q is not a valid permission name.", p)
 			}
 		}
 
 		templateContext.Description = strings.TrimSpace(r.Form.Get("description"))
 		if templateContext.Description == "" {
-			templateContext.Errors = templateContext.Errors.WithRequired("description")
+			templateContext.Errors.AddRequired("description")
 		}
 
-		if len(templateContext.Errors) == 0 {
+		if !templateContext.Errors.Empty() {
 			group, err := session.CreatePermissionGroup(ctx, templateContext.Description, templateContext.Permissions)
 			if err != nil {
 				alert.EmitErr(ctx, err, "Cannot create permission group.")
@@ -1088,16 +1088,16 @@ func (h adminPermissionGroupDetails) ServeHTTP(w http.ResponseWriter, r *http.Re
 		validPermission := regexp.MustCompile(`[a-zA-Z0-9\-_\.:]+`)
 		for _, p := range templateContext.Permissions {
 			if !validPermission.MatchString(p) {
-				templateContext.Errors = templateContext.Errors.With("permissions", fmt.Sprintf("%q is not a valid permission name.", p))
+				templateContext.Errors.Add("permissions", "%q is not a valid permission name.", p)
 			}
 		}
 
 		templateContext.Description = strings.TrimSpace(r.Form.Get("description"))
 		if templateContext.Description == "" {
-			templateContext.Errors = templateContext.Errors.WithRequired("description")
+			templateContext.Errors.AddRequired("description")
 		}
 
-		if len(templateContext.Errors) == 0 {
+		if !templateContext.Errors.Empty() {
 			if err := session.UpdatePermissionGroup(ctx, group.PermissionGroupID, templateContext.Description, templateContext.Permissions); err != nil {
 				alert.EmitErr(ctx, err, "Cannot update permission group.",
 					"permissiongroup_id", fmt.Sprint(group.PermissionGroupID))

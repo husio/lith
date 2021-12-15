@@ -18,6 +18,7 @@ import (
 	"github.com/husio/lith/pkg/secret"
 	"github.com/husio/lith/pkg/taskqueue"
 	"github.com/husio/lith/pkg/totp"
+	"github.com/husio/lith/pkg/validation"
 )
 
 func TestAPIManageSessionNoTwoFactor(t *testing.T) {
@@ -119,7 +120,7 @@ func TestAPIManageSessionNoTwoFactor(t *testing.T) {
 
 	app.ServeHTTP(w, r)
 
-	if want, got := http.StatusNotFound, w.Code; want != got {
+	if want, got := http.StatusUnauthorized, w.Code; want != got {
 		t.Fatalf("want double delete response %d status, got %d: %s", want, got, w.Body)
 	}
 }
@@ -384,6 +385,7 @@ func TestAPICreateAccount(t *testing.T) {
 	if want, got := http.StatusBadRequest, w.Code; want != got {
 		t.Fatalf(" wat %d status, got %d: %s", want, got, w.Body)
 	}
+	validation.AssertHas(t, w.Body.Bytes(), "password")
 
 	goodPass := strings.Repeat("a", int(conf.MinPasswordLength))
 	r = httptest.NewRequest("PUT", "/api/accounts", jsonBody(t, struct {
@@ -395,7 +397,7 @@ func TestAPICreateAccount(t *testing.T) {
 	}))
 	w = httptest.NewRecorder()
 	app.ServeHTTP(w, r)
-	if want, got := http.StatusOK, w.Code; want != got {
+	if want, got := http.StatusCreated, w.Code; want != got {
 		t.Fatalf(" wat %d status, got %d: %s", want, got, w.Body)
 	}
 	var created struct {
@@ -483,7 +485,7 @@ func TestAPIResetPasswordSuccess(t *testing.T) {
 	var task SendResetPassword
 	tasks.LoadRecorded(t, 0, &task)
 
-	r = httptest.NewRequest("POST", "/api/passwordreset", jsonBody(t, struct {
+	r = httptest.NewRequest("PUT", "/api/passwordreset", jsonBody(t, struct {
 		Token    string `json:"token"`
 		Password string `json:"password"`
 	}{
@@ -495,6 +497,7 @@ func TestAPIResetPasswordSuccess(t *testing.T) {
 	if want, got := http.StatusBadRequest, w.Code; want != got {
 		t.Fatalf("want  %d status, got %d: %s", want, got, w.Body)
 	}
+	validation.AssertHas(t, w.Body.Bytes(), "password")
 
 	r = httptest.NewRequest("PUT", "/api/passwordreset", jsonBody(t, struct {
 		Token    string `json:"token"`

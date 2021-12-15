@@ -248,19 +248,19 @@ func (h publicPasswordResetComplete) ServeHTTP(w http.ResponseWriter, r *http.Re
 	passRepeat := r.Form.Get("password_repeat")
 
 	if password != passRepeat {
-		templateContext.Errors = templateContext.Errors.With("password", trans.T("Entered passwords are not the same."))
+		templateContext.Errors.Add("password", trans.T("Entered passwords are not the same."))
 	}
 	if n := len(password); n == 0 {
-		templateContext.Errors = templateContext.Errors.WithRequired("password")
+		templateContext.Errors.AddRequired("password")
 	} else if n < int(h.conf.MinPasswordLength) {
-		templateContext.Errors = templateContext.Errors.With("password",
+		templateContext.Errors.Add("password",
 			trans.Tn(
 				"Too short. Must be at least %d character long.",
 				"Too short. Must be at least %d characters long.",
 				int(h.conf.MinPasswordLength)))
 	}
 
-	if len(templateContext.Errors) != 0 {
+	if !templateContext.Errors.Empty() {
 		tmpl.Render(w, http.StatusOK, "public_password_reset_complete.html", templateContext)
 		return
 	}
@@ -916,9 +916,9 @@ func (h publicRegister) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	email := normalizeEmail(r.Form.Get("email"))
 	templateContext.Email = email
 	if ok, _ := regexp.MatchString(h.conf.AllowRegisterEmail, email); !ok {
-		errs = errs.With("email", trans.T("Email address not allowed to register."))
+		errs.Add("email", trans.T("Email address not allowed to register."))
 	}
-	if len(errs) != 0 {
+	if !errs.Empty() {
 		templateContext.Errors = errs
 		tmpl.Render(w, http.StatusBadRequest, "public_register.html", templateContext)
 		return
@@ -1012,14 +1012,14 @@ func (h publicRegisterComplete) ServeHTTP(w http.ResponseWriter, r *http.Request
 	password := r.Form.Get("password")
 	passwordRep := r.Form.Get("password_repeat")
 	if password != passwordRep {
-		errs = errs.With("password", trans.T("Entered passwords are not the same."))
+		errs.Add("password", trans.T("Entered passwords are not the same."))
 	} else if min := h.conf.MinPasswordLength; len(password) < int(min) {
-		errs = errs.With("password", trans.Tn(
+		errs.Add("password", trans.Tn(
 			"Password is too short. At least %d character is required.",
 			"Password is too short. At least %d characters are required.",
 			int(min)))
 	}
-	if len(errs) != 0 {
+	if !errs.Empty() {
 		templateContext.Errors = errs
 		tmpl.Render(w, http.StatusBadRequest, "public_register_complete.html", templateContext)
 		return
