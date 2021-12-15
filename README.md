@@ -1,4 +1,8 @@
-[![Go](https://github.com/husio/lith/actions/workflows/go.yml/badge.svg)](https://github.com/husio/lith/actions/workflows/go.yml) | [Quick Start](#quick-start) | [Examples](#examples)
+[![Go](https://github.com/husio/lith/actions/workflows/go.yml/badge.svg)](https://github.com/husio/lith/actions/workflows/go.yml)
+[![Documentation Status](https://readthedocs.org/projects/lith/badge/?version=latest)](https://lith.readthedocs.io/?badge=latest)
+| [Quick Start](#quick-start)
+| [Examples](#examples)
+
 
 # Lith
 
