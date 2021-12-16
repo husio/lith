@@ -1,4 +1,4 @@
-![](setup.png)
+![](../../examples/js_spa/setup.png)
 
 First, make sure to run `make docker-image` in the projects main directory. This will build a docker image called `lith`.
 
@@ -45,6 +45,6 @@ For convenience, two-factor authentication is disabled. You can enable it in the
     js_spa_mailhog_1      MailHog                          Up       1025/tcp, 0.0.0.0:8025->8025/tcp,:::8025->8025/tcp
 
 
-## How it works.
+### How it works.
 
 When you go to http://localhost:8000, Nginx serves Single Page Application. JavaScript application will communicate with Lith in order to authenticate and manage your identity. All calls to Lith are done using JSON API.

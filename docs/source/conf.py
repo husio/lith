@@ -11,9 +11,11 @@ author = 'Piotr Husiatyński'
 
 
 extensions = [
+        "m2r2",
         "sphinxcontrib.httpdomain",
         "sphinxcontrib.httpexample",
 ]
+source_suffix = ['.rst', '.md']
 
 templates_path = ['_templates']
 

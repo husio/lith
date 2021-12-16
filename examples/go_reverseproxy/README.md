@@ -1,4 +1,4 @@
-![](setup.png)
+![](../../examples/go_reverseproxy/setup.png)
 
 First, make sure to run `make docker-image` in the projects main directory. This will build a docker image called `lith`.
 
@@ -33,15 +33,15 @@ For convenience, two-factor authentication is disabled. You can enable it in the
 
 
     % docker-compose ps
-                Name                          Command               State                          Ports
-                ---------------------------------------------------------------------------------------------------------------------------
-                go_reverseproxy_app_1          ./app                            Up       0.0.0.0:8000->8000/tcp,:::8000->8000/tcp
-                go_reverseproxy_lith-admin_1   /bin/lith -conf /etc/lith. ...   Exit 0
-                go_reverseproxy_lith_1         /bin/lith -conf /etc/lith. ...   Up       0.0.0.0:8003->8003/tcp,:::8003->8003/tcp
-                go_reverseproxy_mailhog_1      MailHog                          Up       1025/tcp, 0.0.0.0:8025->8025/tcp,:::8025->8025/tcp
+    Name                          Command               State                          Ports
+    ---------------------------------------------------------------------------------------------------------------------------
+    go_reverseproxy_app_1          ./app                            Up       0.0.0.0:8000->8000/tcp,:::8000->8000/tcp
+    go_reverseproxy_lith-admin_1   /bin/lith -conf /etc/lith. ...   Exit 0
+    go_reverseproxy_lith_1         /bin/lith -conf /etc/lith. ...   Up       0.0.0.0:8003->8003/tcp,:::8003->8003/tcp
+    go_reverseproxy_mailhog_1      MailHog                          Up       1025/tcp, 0.0.0.0:8025->8025/tcp,:::8025->8025/tcp
 
 
-## How it works.
+### How it works.
 
 When you go to http://localhost:8000, Go application will check if you have an active session by introspecting your cookies. If you provide a session cookie, a call to Lith is made to validate and introspect your token.
 If you are not authenticated, Go application will display a link to Lith authentication page where you can authenticate. All requests to Lith are proxied by Go application. End user cannot notice that authentication is done by a separate application.
