@@ -1,16 +1,12 @@
-[![Go](https://github.com/husio/lith/actions/workflows/go.yml/badge.svg)](https://github.com/husio/lith/actions/workflows/go.yml)
+[![Go](https://github.com/husio/lith/actions/workflows/test.yml/badge.svg)](https://github.com/husio/lith/actions/workflows/test.yml)
 [![Documentation Status](https://readthedocs.org/projects/lith/badge/?version=latest)](https://lith.readthedocs.io/?badge=latest)
-| [Quick Start](#quick-start)
-| [Examples](#examples)
-
-
-# Lith
 
 
 Lith is an authentication service. It is small, fast, self-contained and easy to configure.
 
+Documentation is available at https://lith.readthedocs.io .
 
-## Features
+## Features summary
 
 * **Open Source**
 * **Account registration** with email verification and a secure password setup.
@@ -26,7 +22,7 @@ Lith is an authentication service. It is small, fast, self-contained and easy to
 ## Quick start
 
 Lith is a standalone service that can be integrated in many ways. You can start a generic demo instance by executing `make run-demo`.
-For more specific examples, see [examples](#examples) section.
+For more specific setup examples, see [examples](#examples) section.
 
 
 ## Examples

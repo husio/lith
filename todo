@@ -55,5 +55,6 @@ after-registration webhook execution
 ssh integration (login/second factor)
 telegram integration (second factor)
 update CI to build artifacts: binary and docker image
+add alternative storage and task quue implementations using Postgres & Redis/Memcache
 
 ^^^^^^^ random ideas ^^^^^^^
