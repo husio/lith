@@ -16,11 +16,6 @@ build-%:
 	mkdir -p bin
 	CGO_ENABLED=1 go build -ldflags="-X 'main.sourceHash=${VERSION}'" -o bin/${*} github.com/husio/lith/cmd/${*}
 
-build-docs:
-	cat docs/_template/header.html > docs/docs.html
-	rendermarkdown < docs/docs.md >> docs/docs.html
-	cat docs/_template/footer.html >> docs/docs.html
-
 vendor:
 	go mod tidy && go mod vendor && go mod verify
 
@@ -28,14 +23,20 @@ docker-image:
 	docker build -t "lith:${VERSION}" -t "lith:latest" .
 
 run-lith:
+	@# In order to run with live reload, install cespare/reflex
 	@# https://github.com/cespare/reflex
 	reflex -s -- sh -c 'go run github.com/husio/lith/cmd/lith -conf examples/lith.conf serve'
 
 run-monitor-queue:
-	watch 'echo "select * from failures order by created_at desc limit 2" | sqlite3 /tmp/lith_taskqueue.sqlite3.db'
+	watch 'sh ./bin/taskqueue_status.sh'
 
 run-test-mailserver:
-	@# 1025 is SMTP port, 8025 is for HTTP interface
+	@echo
+	@echo
+	@echo "Running UI on http://localhost:8025"
+	@echo "Running SMTP server on localhost:11025"
+	@echo
+	@echo
 	docker run -p 11025:1025 -p 8025:8025 mailhog/mailhog
 
 run-demo: build-lith
