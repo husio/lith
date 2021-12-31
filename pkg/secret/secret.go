@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha512"
+	"crypto/subtle"
 	"database/sql/driver"
 	"errors"
 	"fmt"
@@ -91,6 +92,14 @@ func WithDeterministicGenerate(t testing.TB, v Value) {
 
 // Value represents a secret value that must not be exposed.
 type Value []byte
+
+// Is returns true if two secrets are equal.
+func (v Value) Is(other Value) bool {
+	if len(v) == 0 || len(other) == 0 {
+		return false
+	}
+	return subtle.ConstantTimeCompare(v, other) == 1
+}
 
 // Forbid certain interface to avoid stupid mistakes.
 func (Value) String() string               { return "-secret-" }

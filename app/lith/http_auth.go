@@ -40,28 +40,45 @@ func withAuthInfo(ctx context.Context, sessionID string, a *Account) context.Con
 
 // AuthMiddleware read the request and injects into the context authentication
 // information.
+//
+// Session information is looked up using provided lookup functions. This way
+// you can configure endpoints to use different session storage mechanisms and
+// for example, avoid using cookie lookup everywhere.
+//
+// Be catious when using a lookup function that checks cookie, because cookie
+// authentication requires extra care (i.e. use CSRF protection).
+//
 // This middleware is required by the CurrentAccount function.
-func AuthMiddleware(store Store) func(http.Handler) http.Handler {
+func AuthMiddleware(store Store, lookups ...LookupFunc) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		return &authMiddleware{store: store, next: next}
+		return &authMiddleware{
+			lookups: lookups,
+			store:   store,
+			next:    next,
+		}
 	}
 }
 
+type LookupFunc func(*http.Request) string
+
 type authMiddleware struct {
-	store Store
-	next  http.Handler
+	lookups []LookupFunc
+	store   Store
+	next    http.Handler
 }
 
 func (m *authMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var sessionID string
-	if s := sessionIDFromHeader(r); s != "" {
-		sessionID = s
-	} else if s := sessionIDFromCookie(r); s != "" {
-		sessionID = s
+	for _, fn := range m.lookups {
+		if s := fn(r); s != "" {
+			sessionID = s
+			break
+		}
 	}
-
-	if account := accountBySessionID(r.Context(), m.store, sessionID); account != nil {
-		r = r.WithContext(withAuthInfo(r.Context(), sessionID, account))
+	if sessionID != "" {
+		if account := accountBySessionID(r.Context(), m.store, sessionID); account != nil {
+			r = r.WithContext(withAuthInfo(r.Context(), sessionID, account))
+		}
 	}
 
 	m.next.ServeHTTP(w, r)
@@ -90,7 +107,8 @@ func accountBySessionID(ctx context.Context, store Store, sessionID string) *Acc
 	}
 }
 
-func sessionIDFromCookie(r *http.Request) string {
+// SessionFromCookie returns session ID from the "s" cookie if present.
+func SessionFromCookie(r *http.Request) string {
 	c, err := r.Cookie("s")
 	if err != nil {
 		return ""
@@ -99,7 +117,9 @@ func sessionIDFromCookie(r *http.Request) string {
 
 }
 
-func sessionIDFromHeader(r *http.Request) string {
+// SessionFromHeader returns session ID from the Authorization header if
+// present.
+func SessionFromHeader(r *http.Request) string {
 	header := r.Header.Get("Authorization")
 	if header == "" {
 		return ""

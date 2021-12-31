@@ -13,6 +13,9 @@
         <input name="code" type="text" placeholder="{{translate "Verification code"}}" required autocomplete="off">
       </label>
     </fieldset>
+
+    {{.CSRFField}}
+
     <fieldset>
       <button>{{translate "Verify"}}</button>
     </fieldset>

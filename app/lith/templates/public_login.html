@@ -19,6 +19,7 @@
     {{end}}
 
     <input name="next" type="hidden" value="{{- .Next -}}">
+    {{.CSRFField}}
 
     <fieldset>
       <button>{{translate "Login"}}</button>

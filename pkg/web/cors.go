@@ -43,8 +43,12 @@ type corsMiddleware struct {
 func (m corsMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	header := w.Header()
 
-	// Ensure origin is not cached.
+	// Ensure origin is not cached. It is mandatory if CORS is included for
+	// only some endpoints, and we cannot ensure this is not the case.
 	header.Add("Vary", "Origin")
+
+	// Do not cache cookie to prevent leaking it.
+	header.Add("Vary", "Cookie")
 
 	origin := r.Header.Get("Origin")
 	if _, ok := m.origins[origin]; ok || localhostDomain(origin) {
@@ -55,13 +59,14 @@ func (m corsMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// This is a preflight request.
 		header.Set("Access-Control-Allow-Methods", m.methods)
 		header.Set("Access-Control-Allow-Headers", m.headers)
-		header.Set("Access-Control-Allow-Credentials", "false")
+		header.Set("Access-Control-Allow-Credentials", "true")
 
 		// The Access-Control-Max-Age header indicates how long the
 		// results of a preflight request can be cached (in seconds).
 		// Default might vary between browsers, so set up something
 		// predictable.
 		header.Set("Access-Control-Max-Age", "300")
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 

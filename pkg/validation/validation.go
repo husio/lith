@@ -8,6 +8,7 @@ import (
 
 type Errors map[string][]string
 
+// Empty returns true if this collection does not contain errors.
 func (e Errors) Empty() bool {
 	return len(e) == 0
 }

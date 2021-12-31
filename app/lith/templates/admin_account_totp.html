@@ -18,11 +18,13 @@
     <div class="infobox red">
       <strong>Warning</strong> This operation removes previous secret.
     </div>
+    {{.CSRFField}}
     <button>Generate a new secret.</button>
   </form>
 {{else}}
   <div class="infobox blue">Second Factor not enabled.</div>
   <form method="POST" action=".">
+    {{.CSRFField}}
     <button>Generate secret.</button>
   </form>
 {{end}}

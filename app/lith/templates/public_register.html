@@ -14,6 +14,7 @@
       <button>{{translate "Register"}}</button>
     </fieldset>
 
+    {{.CSRFField}}
     <input name="next" type="hidden" value="{{- .Next -}}">
   </form>
 

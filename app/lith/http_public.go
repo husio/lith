@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"html/template"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/gorilla/csrf"
 	"github.com/husio/lith/pkg/alert"
 	"github.com/husio/lith/pkg/cache"
 	"github.com/husio/lith/pkg/secret"
@@ -26,6 +28,7 @@ func PublicHandler(
 	store Store,
 	cache cache.Store,
 	safe secret.Safe,
+	secret []byte,
 	queue taskqueue.Scheduler,
 ) http.Handler {
 	public := web.NewRouter()
@@ -53,7 +56,12 @@ func PublicHandler(
 		web.RecoverMiddleware(),
 		web.TrailingSlashMiddleware(true),
 		translation.LanguageMiddleware,
-		AuthMiddleware(store),
+		AuthMiddleware(store, SessionFromCookie),
+		csrf.Protect(secret,
+			csrf.CookieName("csrf"),
+			csrf.FieldName("csrf"),
+			csrf.ErrorHandler(publicCSRFErrorHandler{conf: conf}),
+		),
 	)
 
 	rt := http.NewServeMux()
@@ -61,6 +69,14 @@ func PublicHandler(
 	rt.Handle(p+`statics/`, http.StripPrefix(p+"statics", http.FileServer(http.FS(adminStaticsFS()))))
 	rt.Handle(`/`, public)
 	return rt
+}
+
+type publicCSRFErrorHandler struct {
+	conf PublicUIConfiguration
+}
+
+func (h publicCSRFErrorHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	renderPublicErr(w, h.conf, http.StatusForbidden, csrf.FailureReason(r).Error())
 }
 
 type publicDefaultHandler struct {
@@ -84,10 +100,12 @@ func (h publicPasswordReset) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	templateContext := struct {
 		publicTemplateCore
-		Next string
+		Next      string
+		CSRFField template.HTML
 	}{
 		publicTemplateCore: newPublicTemplateCore(h.conf, trans.T("Password Reset")),
 		Next:               r.URL.Query().Get("next"),
+		CSRFField:          csrf.TemplateField(r),
 	}
 
 	if r.Method == "GET" {
@@ -227,11 +245,13 @@ func (h publicPasswordResetComplete) ServeHTTP(w http.ResponseWriter, r *http.Re
 
 	templateContext := struct {
 		publicTemplateCore
-		Errors validation.Errors
-		Next   string
+		Errors    validation.Errors
+		Next      string
+		CSRFField template.HTML
 	}{
 		publicTemplateCore: newPublicTemplateCore(h.conf, trans.T("Register Verify")),
 		Next:               resetPasswordContext.Next,
+		CSRFField:          csrf.TemplateField(r),
 	}
 
 	if r.Method == "GET" {
@@ -322,11 +342,13 @@ func (h publicLogin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	templateContext := struct {
 		publicTemplateCore
-		Email    string
-		Next     string
-		ErrorMsg string
+		Email     string
+		Next      string
+		ErrorMsg  string
+		CSRFField template.HTML
 	}{
 		publicTemplateCore: newPublicTemplateCore(h.conf, trans.T("Login")),
+		CSRFField:          csrf.TemplateField(r),
 	}
 
 	if next := r.URL.Query().Get("next"); next != "" {
@@ -549,9 +571,11 @@ func (h publicLoginVerify) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	templateContext := struct {
 		publicTemplateCore
-		ErrorMsg string
+		ErrorMsg  string
+		CSRFField template.HTML
 	}{
 		publicTemplateCore: newPublicTemplateCore(h.conf, trans.T("Login Verify")),
+		CSRFField:          csrf.TemplateField(r),
 	}
 
 	account, err := session.AccountByID(ctx, verify2faContext.AccountID)
@@ -751,9 +775,11 @@ func (h publicTwoFactorAuthEnable) ServeHTTP(w http.ResponseWriter, r *http.Requ
 		CurrentAccount       *Account
 		EphemeralSecretToken string
 		QRCodeBase64         string
+		CSRFField            template.HTML
 	}{
 		publicTemplateCore: newPublicTemplateCore(h.conf, trans.T("Two Factor")),
 		CurrentAccount:     account,
+		CSRFField:          csrf.TemplateField(r),
 	}
 
 	var totpEnableContext struct {
@@ -890,12 +916,14 @@ func (h publicRegister) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	templateContext := struct {
 		publicTemplateCore
-		Email  string
-		Next   string
-		Errors validation.Errors
+		Email     string
+		Next      string
+		Errors    validation.Errors
+		CSRFField template.HTML
 	}{
 		publicTemplateCore: newPublicTemplateCore(h.conf, trans.T("Register")),
 		Next:               r.URL.Query().Get("next"),
+		CSRFField:          csrf.TemplateField(r),
 	}
 
 	if r.Method == "GET" {
@@ -992,10 +1020,12 @@ func (h publicRegisterComplete) ServeHTTP(w http.ResponseWriter, r *http.Request
 
 	templateContext := struct {
 		publicTemplateCore
-		Next   string
-		Errors validation.Errors
+		Next      string
+		Errors    validation.Errors
+		CSRFField template.HTML
 	}{
 		publicTemplateCore: newPublicTemplateCore(h.conf, trans.T("Register Verify")),
+		CSRFField:          csrf.TemplateField(r),
 	}
 
 	if r.Method == "GET" {

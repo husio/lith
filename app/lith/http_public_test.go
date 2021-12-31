@@ -42,8 +42,7 @@ func TestPublicEnableTwoFactorAuth(t *testing.T) {
 			Prepare: func(testing.TB, StoreSession) string {
 				return "a-non-existing-session-id"
 			},
-			WantGetCode:  http.StatusTemporaryRedirect,
-			WantPostCode: http.StatusTemporaryRedirect,
+			WantGetCode: http.StatusTemporaryRedirect,
 		},
 		"a valid code must be given to confirm": {
 			Prepare: func(t testing.TB, s StoreSession) string {
@@ -57,6 +56,9 @@ func TestPublicEnableTwoFactorAuth(t *testing.T) {
 					t.Fatalf("create session: %s", err)
 				}
 				return sessionID
+			},
+			Form: url.Values{
+				// No input.
 			},
 			WantGetCode:  http.StatusOK,
 			WantPostCode: http.StatusBadRequest,
@@ -77,8 +79,10 @@ func TestPublicEnableTwoFactorAuth(t *testing.T) {
 				}
 				return sessionID
 			},
-			WantGetCode:  http.StatusSeeOther,
-			WantPostCode: http.StatusSeeOther,
+			Form: url.Values{
+				// No input.
+			},
+			WantGetCode: http.StatusSeeOther,
 		},
 		"providing a valid code enables two-factor authentication": {
 			Prepare: func(t testing.TB, s StoreSession) string {
@@ -116,20 +120,27 @@ func TestPublicEnableTwoFactorAuth(t *testing.T) {
 			})
 			cache := cache.NewLocalMemCache(1e6)
 			safe := secret.AESSafe("t0p-secret")
-			app := PublicHandler(conf, store, cache, safe, nil)
+			app := PublicHandler(conf, store, cache, safe, secret.Generate(16), nil)
 
 			r := httptest.NewRequest("GET", "/t/twofactor/enable/", nil)
-			r.Header.Set("authorization", "Bearer "+sessionID)
+			r.Header.Set("cookie", "s="+sessionID)
 			w := httptest.NewRecorder()
 			app.ServeHTTP(w, r)
 			if want, got := tc.WantGetCode, w.Code; want != got {
 				t.Fatalf("want 2fa GET response %d status, got %d: %s", want, got, w.Body)
 			}
 
+			if w.Code >= 300 {
+				return
+			}
+
+			csrfToken, csrfCookie := readCSRFToken(t, w)
+			tc.Form.Add("csrf", csrfToken)
 			body := strings.NewReader(tc.Form.Encode())
 			r = httptest.NewRequest("POST", "/t/twofactor/enable/", body)
 			r.Header.Set("content-type", "application/x-www-form-urlencoded")
-			r.Header.Set("authorization", "Bearer "+sessionID)
+			r.Header.Set("cookie", "s="+sessionID)
+			r.Header.Add("cookie", csrfCookie)
 			w = httptest.NewRecorder()
 			app.ServeHTTP(w, r)
 			if want, got := tc.WantPostCode, w.Code; want != got {
@@ -155,7 +166,7 @@ func TestPublicRegisterAccount(t *testing.T) {
 	store := newTestSQLiteStore(t)
 	cache := cache.NewLocalMemCache(1e6)
 	safe := secret.AESSafe("t0p-secret")
-	app := PublicHandler(conf, store, cache, safe, &tasks)
+	app := PublicHandler(conf, store, cache, safe, secret.Generate(16), &tasks)
 
 	r := httptest.NewRequest("GET", "/public/register/", nil)
 	w := httptest.NewRecorder()
@@ -164,11 +175,15 @@ func TestPublicRegisterAccount(t *testing.T) {
 		t.Fatalf("want register GET response %d status, got %d: %s", want, got, w.Body)
 	}
 
+	csrfToken, csrfCookie := readCSRFToken(t, w)
+
 	body := url.Values{
-		"email": []string{"mona@example.com"},
+		"email": {"mona@example.com"},
+		"csrf":  {csrfToken},
 	}
 	r = httptest.NewRequest("POST", "/public/register/", strings.NewReader(body.Encode()))
 	r.Header.Set("content-type", "application/x-www-form-urlencoded")
+	r.Header.Set("cookie", csrfCookie)
 	w = httptest.NewRecorder()
 	app.ServeHTTP(w, r)
 	if want, got := http.StatusOK, w.Code; want != got {
@@ -190,12 +205,24 @@ func TestPublicRegisterAccount(t *testing.T) {
 			"token":           []string{task.Token},
 			"password":        []string{strings.Repeat("a", int(conf.MinPasswordLength-1))},
 			"password_repeat": []string{strings.Repeat("a", int(conf.MinPasswordLength-1))},
+			"csrf":            {csrfToken},
 		}
 		r := httptest.NewRequest("POST", "/public/register/"+task.Token+"/", strings.NewReader(body.Encode()))
 		r.Header.Set("content-type", "application/x-www-form-urlencoded")
+		r.Header.Set("cookie", csrfCookie)
 		w := httptest.NewRecorder()
 		app.ServeHTTP(w, r)
 		if want, got := http.StatusBadRequest, w.Code; want != got {
+			t.Fatalf("want register POST response %d status, got %d: %s", want, got, w.Body)
+		}
+	})
+
+	t.Run("csrf token is required", func(t *testing.T) {
+		r = httptest.NewRequest("POST", "/public/register/"+task.Token+"/", strings.NewReader(url.Values{}.Encode()))
+		r.Header.Set("content-type", "application/x-www-form-urlencoded")
+		w = httptest.NewRecorder()
+		app.ServeHTTP(w, r)
+		if want, got := http.StatusForbidden, w.Code; want != got {
 			t.Fatalf("want register POST response %d status, got %d: %s", want, got, w.Body)
 		}
 	})
@@ -205,9 +232,11 @@ func TestPublicRegisterAccount(t *testing.T) {
 			"token":           []string{task.Token},
 			"password":        []string{strings.Repeat("a", int(conf.MinPasswordLength))},
 			"password_repeat": []string{strings.Repeat("b", int(conf.MinPasswordLength))},
+			"csrf":            {csrfToken},
 		}
 		r := httptest.NewRequest("POST", "/public/register/"+task.Token+"/", strings.NewReader(body.Encode()))
 		r.Header.Set("content-type", "application/x-www-form-urlencoded")
+		r.Header.Set("cookie", csrfCookie)
 		w := httptest.NewRecorder()
 		app.ServeHTTP(w, r)
 		if want, got := http.StatusBadRequest, w.Code; want != got {
@@ -219,9 +248,11 @@ func TestPublicRegisterAccount(t *testing.T) {
 		"token":           []string{task.Token},
 		"password":        []string{strings.Repeat("a", int(conf.MinPasswordLength))},
 		"password_repeat": []string{strings.Repeat("a", int(conf.MinPasswordLength))},
+		"csrf":            {csrfToken},
 	}
 	r = httptest.NewRequest("POST", "/public/register/"+task.Token+"/", strings.NewReader(body.Encode()))
 	r.Header.Set("content-type", "application/x-www-form-urlencoded")
+	r.Header.Set("cookie", csrfCookie)
 	w = httptest.NewRecorder()
 	app.ServeHTTP(w, r)
 	if want, got := http.StatusOK, w.Code; want != got {
@@ -305,11 +336,15 @@ func TestPublicLoginNoTwoFactorAuth(t *testing.T) {
 				tc.PrepareStore(t, s)
 			})
 
-			app := PublicHandler(conf, store, nil, nil, nil)
+			app := PublicHandler(conf, store, nil, nil, secret.Generate(16), nil)
 
+			csrfToken, csrfCookie := acquireCSRFToken(t, "/t/login/", app)
+
+			tc.Form.Add("csrf", csrfToken)
 			body := strings.NewReader(tc.Form.Encode())
 			r := httptest.NewRequest("POST", "/t/login/", body)
 			r.Header.Set("content-type", "application/x-www-form-urlencoded")
+			r.Header.Set("cookie", csrfCookie)
 			w := httptest.NewRecorder()
 
 			app.ServeHTTP(w, r)
@@ -468,10 +503,14 @@ func TestPublicLoginWithTwoFactorAuth(t *testing.T) {
 				tc.Prepare(t, s, cache)
 			})
 
-			app := PublicHandler(conf, store, cache, safe, nil)
+			app := PublicHandler(conf, store, cache, safe, secret.Generate(16), nil)
 
+			csrfToken, csrfCookie := acquireCSRFToken(t, "/t/login/", app)
+
+			tc.FormLogin.Set("csrf", csrfToken)
 			r := httptest.NewRequest("POST", "/t/login/", strings.NewReader(tc.FormLogin.Encode()))
 			r = r.WithContext(ctx)
+			r.Header.Set("cookie", csrfCookie)
 			r.Header.Set("content-type", "application/x-www-form-urlencoded")
 			w := httptest.NewRecorder()
 			app.ServeHTTP(w, r)
@@ -487,9 +526,11 @@ func TestPublicLoginWithTwoFactorAuth(t *testing.T) {
 			withCurrentTime(t, now)
 			totp.WithCurrentTime(t, now)
 
+			tc.Form2Fa.Set("csrf", csrfToken)
 			r = httptest.NewRequest("POST", w.Header().Get("location"), strings.NewReader(tc.Form2Fa.Encode()))
 			r.Header.Set("content-type", "application/x-www-form-urlencoded")
 			r.Header.Set("cookie", w.HeaderMap.Get("set-cookie"))
+			r.Header.Add("cookie", csrfCookie)
 			w = httptest.NewRecorder()
 			app.ServeHTTP(w, r)
 
@@ -526,15 +567,19 @@ func TestPublicLoginWithTwoFactorAuthRequired(t *testing.T) {
 		PathPrefix:           "/2fa-required/",
 		SessionMaxAge:        time.Hour,
 		RequireTwoFactorAuth: true,
-	}, store, cache, safe, nil)
+	}, store, cache, safe, secret.Generate(16), nil)
+
+	csrfToken, csrfCookie := acquireCSRFToken(t, "/2fa-required/login/", app)
 
 	r := httptest.NewRequest("POST", "/2fa-required/login/", strings.NewReader(url.Values{
 		"email":    {"joe@example.com"},
 		"password": {"logpass"},
 		"next":     {"/2fa-enabled-club/"},
+		"csrf":     {csrfToken},
 	}.Encode()))
 	r = r.WithContext(ctx)
 	r.Header.Set("content-type", "application/x-www-form-urlencoded")
+	r.Header.Set("cookie", csrfCookie)
 	w := httptest.NewRecorder()
 	app.ServeHTTP(w, r)
 	if want, got := http.StatusSeeOther, w.Code; want != got {
@@ -571,10 +616,12 @@ func TestPublicLoginWithTwoFactorAuthRequired(t *testing.T) {
 			// secret is not random.
 			totp.Generate(time.Now().Add(-time.Second), secret.Value("secret-1234")),
 		},
+		"csrf": {csrfToken},
 	}.Encode()))
 	r.Header.Set("content-type", "application/x-www-form-urlencoded")
 	// A temporary session cookie must be provided.
-	r.Header.Set("cookie", tmpSessionCookie)
+	r.Header.Add("cookie", tmpSessionCookie)
+	r.Header.Add("cookie", csrfCookie)
 	w = httptest.NewRecorder()
 	app.ServeHTTP(w, r)
 

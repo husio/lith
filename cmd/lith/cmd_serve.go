@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/sha512"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/smtp"
@@ -83,13 +85,24 @@ func runServer(ctx context.Context, conf lith.Configuration) error {
 	}
 
 	if addr := conf.PublicUI.ListenHTTP; addr != "" {
-		registerApp(addr, conf.PublicUI.PathPrefix, lith.PublicHandler(conf.PublicUI, store, cache, safe, bgJobQueue))
+		sum := sha512.New512_256()
+		if _, err := io.WriteString(sum, "public-ui:"+conf.Secret); err != nil {
+			return fmt.Errorf("create admin secret: %w", err)
+		}
+		secret := sum.Sum(nil)
+		registerApp(addr, conf.PublicUI.PathPrefix, lith.PublicHandler(conf.PublicUI, store, cache, safe, secret, bgJobQueue))
 	}
 	if addr := conf.API.ListenHTTP; addr != "" {
 		registerApp(addr, conf.API.PathPrefix, lith.APIHandler(conf.API, store, cache, bgJobQueue))
 	}
+
 	if addr := conf.AdminPanel.ListenHTTP; addr != "" {
-		registerApp(addr, conf.AdminPanel.PathPrefix, lith.AdminHandler(conf.AdminPanel, store, cache, safe, bgJobQueue))
+		sum := sha512.New512_256()
+		if _, err := io.WriteString(sum, "admin-panel:"+conf.Secret); err != nil {
+			return fmt.Errorf("create admin secret: %w", err)
+		}
+		secret := sum.Sum(nil)
+		registerApp(addr, conf.AdminPanel.PathPrefix, lith.AdminHandler(conf.AdminPanel, store, cache, safe, secret, bgJobQueue))
 	}
 
 	errc := make(chan error)

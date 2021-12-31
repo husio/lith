@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -23,6 +24,7 @@ import (
 	"github.com/husio/lith/pkg/validation"
 	"github.com/husio/lith/pkg/web"
 
+	"github.com/gorilla/csrf"
 	qrcode "github.com/skip2/go-qrcode"
 )
 
@@ -34,6 +36,7 @@ func AdminHandler(
 	store Store,
 	cache cache.Store,
 	safe secret.Safe,
+	secret []byte,
 	queue taskqueue.Scheduler,
 ) http.Handler {
 	admin := web.NewRouter()
@@ -58,13 +61,26 @@ func AdminHandler(
 		web.RecoverMiddleware(),
 		web.TrailingSlashMiddleware(true),
 		translation.LanguageMiddleware,
-		AuthMiddleware(store),
+		AuthMiddleware(store, SessionFromCookie),
+		csrf.Protect(secret,
+			csrf.CookieName("csrf"),
+			csrf.FieldName("csrf"),
+			csrf.ErrorHandler(adminCSRFErrorHandler{conf: conf}),
+		),
 	)
 
 	rt := http.NewServeMux()
 	rt.Handle(p+`statics/`, http.StripPrefix(p+"statics", http.FileServer(http.FS(adminStaticsFS()))))
 	rt.Handle(`/`, admin)
 	return rt
+}
+
+type adminCSRFErrorHandler struct {
+	conf AdminPanelConfiguration
+}
+
+func (h adminCSRFErrorHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	renderAdminErr(w, h.conf, http.StatusForbidden, csrf.FailureReason(r).Error())
 }
 
 type adminDefaultHandler struct {
@@ -105,10 +121,12 @@ func (h adminLogin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		adminTemplateCore
 		Email          string
 		Next           string
+		CSRFField      template.HTML
 		ErrorMsg       string
 		CurrentAccount *Account
 	}{
 		adminTemplateCore: newAdminTemplateCore(h.conf, "Login"),
+		CSRFField:         csrf.TemplateField(r),
 		Next:              r.URL.Query().Get("next"),
 	}
 
@@ -343,8 +361,10 @@ func (h adminLoginVerify) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		adminTemplateCore
 		PageTitle string
 		ErrorMsg  string
+		CSRFField template.HTML
 	}{
 		adminTemplateCore: newAdminTemplateCore(h.conf, "Login verify"),
+		CSRFField:         csrf.TemplateField(r),
 	}
 
 	if r.Method == "GET" {
@@ -488,9 +508,11 @@ func (h adminTwoFactorAuthEnable) ServeHTTP(w http.ResponseWriter, r *http.Reque
 		CurrentAccount       *Account
 		EphemeralSecretToken string
 		QRCodeBase64         string
+		CSRFField            template.HTML
 	}{
 		adminTemplateCore: newAdminTemplateCore(h.conf, "Enable Two Factor"),
 		CurrentAccount:    account,
+		CSRFField:         csrf.TemplateField(r),
 	}
 
 	var totpEnableContext struct {
@@ -738,9 +760,11 @@ func (h adminAccountCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		CurrentAccount *Account
 		Email          string
 		Errors         validation.Errors
+		CSRFField      template.HTML
 	}{
 		adminTemplateCore: newAdminTemplateCore(h.conf, "Create Account"),
 		CurrentAccount:    currentAccount,
+		CSRFField:         csrf.TemplateField(r),
 	}
 
 	if r.Method == "GET" {
@@ -815,9 +839,11 @@ func (h adminAccountDetails) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Account          *Account
 		AccountTwoFactor bool
 		PermissionGroups []*ExtendedPermissionGroup
+		CSRFField        template.HTML
 	}{
 		adminTemplateCore: newAdminTemplateCore(h.conf, "Accounts"),
 		CurrentAccount:    currentAccount,
+		CSRFField:         csrf.TemplateField(r),
 	}
 
 	ctx := r.Context()
@@ -983,9 +1009,11 @@ func (h adminPermissionGroupCreate) ServeHTTP(w http.ResponseWriter, r *http.Req
 		Description    string
 		Permissions    []string
 		Errors         validation.Errors
+		CSRFField      template.HTML
 	}{
 		adminTemplateCore: newAdminTemplateCore(h.conf, "Create Permission Group"),
 		CurrentAccount:    currentAccount,
+		CSRFField:         csrf.TemplateField(r),
 	}
 
 	if r.Method == "POST" {
@@ -1007,7 +1035,7 @@ func (h adminPermissionGroupCreate) ServeHTTP(w http.ResponseWriter, r *http.Req
 			templateContext.Errors.AddRequired("description")
 		}
 
-		if !templateContext.Errors.Empty() {
+		if templateContext.Errors.Empty() {
 			group, err := session.CreatePermissionGroup(ctx, templateContext.Description, templateContext.Permissions)
 			if err != nil {
 				alert.EmitErr(ctx, err, "Cannot create permission group.")
@@ -1070,12 +1098,14 @@ func (h adminPermissionGroupDetails) ServeHTTP(w http.ResponseWriter, r *http.Re
 		Description     string
 		Permissions     []string
 		Errors          validation.Errors
+		CSRFField       template.HTML
 	}{
 		adminTemplateCore: newAdminTemplateCore(h.conf, "Permission Group: "+group.Description),
 		CurrentAccount:    currentAccount,
 		PermissionGroup:   group,
 		Description:       group.Description,
 		Permissions:       group.Permissions,
+		CSRFField:         csrf.TemplateField(r),
 	}
 
 	if r.Method == "POST" {
@@ -1097,7 +1127,7 @@ func (h adminPermissionGroupDetails) ServeHTTP(w http.ResponseWriter, r *http.Re
 			templateContext.Errors.AddRequired("description")
 		}
 
-		if !templateContext.Errors.Empty() {
+		if templateContext.Errors.Empty() {
 			if err := session.UpdatePermissionGroup(ctx, group.PermissionGroupID, templateContext.Description, templateContext.Permissions); err != nil {
 				alert.EmitErr(ctx, err, "Cannot update permission group.",
 					"permissiongroup_id", fmt.Sprint(group.PermissionGroupID))

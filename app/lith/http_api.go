@@ -50,9 +50,9 @@ func APIHandler(
 		web.RequestIDMiddleware(),
 		web.RecoverMiddleware(),
 		web.TrailingSlashMiddleware(false),
-		web.CORSMiddleware(conf.CORSDomain, "*", "*"),
+		web.CORSMiddleware(conf.CORSDomain, "GET,POST,PUT,DELETE", "Authorization"),
 		translation.LanguageMiddleware,
-		AuthMiddleware(store),
+		AuthMiddleware(store, SessionFromHeader),
 	)
 
 	return rt

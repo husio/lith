@@ -11,8 +11,6 @@ Flaky test
 ^^^^^^^ 0.2 ^^^^^^^
 
 TODO: revisit all templates, fix wording and styling
-TODO: csrf - research more, because tls 1.3 & strict cookie might be enough
-TODO: cors - research more
 TODO: lib/client must implement full API
 
 ^^^^^^^ 0.3 ^^^^^^^
