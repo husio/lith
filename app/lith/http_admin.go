@@ -142,8 +142,11 @@ func (h adminLogin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ctx := r.Context()
+	trans := transFor(ctx)
+
 	if err := r.ParseForm(); err != nil {
-		renderAdminErr(w, h.conf, http.StatusBadRequest, "Cannot parse form.")
+		renderAdminErr(w, h.conf, http.StatusBadRequest, trans.T("Cannot parse form."))
 		return
 	}
 
@@ -161,8 +164,6 @@ func (h adminLogin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		tmpl.Render(w, http.StatusBadRequest, "admin_login.html", templateContext)
 		return
 	}
-
-	ctx := r.Context()
 
 	session, err := h.store.Session(ctx)
 	if err != nil {
@@ -327,6 +328,7 @@ func (h adminLoginVerify) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
+	trans := transFor(ctx)
 
 	session, err := h.store.Session(ctx)
 	if err != nil {
@@ -377,7 +379,7 @@ func (h adminLoginVerify) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := r.ParseForm(); err != nil {
-		renderAdminErr(w, h.conf, http.StatusBadRequest, "Cannot parse form.")
+		renderAdminErr(w, h.conf, http.StatusBadRequest, trans.T("Cannot parse form."))
 		return
 	}
 
@@ -449,6 +451,7 @@ type adminTwoFactorAuthEnable struct {
 
 func (h adminTwoFactorAuthEnable) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	trans := transFor(ctx)
 
 	session, err := h.store.Session(ctx)
 	if err != nil {
@@ -495,7 +498,7 @@ func (h adminTwoFactorAuthEnable) ServeHTTP(w http.ResponseWriter, r *http.Reque
 
 	switch _, err := session.AccountTOTPSecret(ctx, account.AccountID); {
 	case err == nil:
-		renderAdminErr(w, h.conf, http.StatusBadRequest, "two factor authentication already enabled.")
+		renderAdminErr(w, h.conf, http.StatusBadRequest, trans.T("Two Factor Authentication already enabled."))
 		return
 	case errors.Is(err, ErrNotFound):
 		// All good.
@@ -565,7 +568,7 @@ func (h adminTwoFactorAuthEnable) ServeHTTP(w http.ResponseWriter, r *http.Reque
 
 	if r.Method == "POST" {
 		if err := r.ParseForm(); err != nil {
-			renderAdminErr(w, h.conf, http.StatusBadRequest, "Cannot parse form.")
+			renderAdminErr(w, h.conf, http.StatusBadRequest, trans.T("Cannot parse form."))
 			return
 		}
 
@@ -622,7 +625,7 @@ func (h adminTwoFactorAuthEnable) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		alert.EmitErr(ctx, err, "Cannot create TOTP QR-Code.",
 			"account_id", account.AccountID)
-		renderAdminErr(w, h.conf, http.StatusInternalServerError, "Cannot generate QR Code.")
+		renderAdminErr(w, h.conf, http.StatusInternalServerError, trans.T("Cannot generate QR Code."))
 		return
 
 	}
@@ -630,7 +633,7 @@ func (h adminTwoFactorAuthEnable) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		alert.EmitErr(ctx, err, "Cannot generate TOTP QR-Code PNG file.",
 			"account_id", account.AccountID)
-		renderAdminErr(w, h.conf, http.StatusInternalServerError, "Cannot generate QR Code.")
+		renderAdminErr(w, h.conf, http.StatusInternalServerError, trans.T("Cannot generate QR Code."))
 		return
 	}
 	templateContext.QRCodeBase64 = base64.StdEncoding.EncodeToString(png)
@@ -783,18 +786,18 @@ func (h adminAccountCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ctx := r.Context()
+	trans := transFor(ctx)
+
 	templateContext.Email = normalizeEmail(r.Form.Get("email"))
 	if templateContext.Email == "" {
-		templateContext.Errors.AddRequired("email")
+		templateContext.Errors.Add("email", trans.T("Email is required."))
 	}
 
 	if !templateContext.Errors.Empty() {
 		tmpl.Render(w, http.StatusOK, "admin_account_create.html", templateContext)
 		return
 	}
-
-	ctx := r.Context()
-	trans := transFor(ctx)
 
 	session, err := h.store.Session(ctx)
 	if err != nil {
@@ -1026,6 +1029,8 @@ func (h adminPermissionGroupCreate) ServeHTTP(w http.ResponseWriter, r *http.Req
 	}
 
 	ctx := r.Context()
+	trans := transFor(ctx)
+
 	session, err := h.store.Session(ctx)
 	if err != nil {
 		alert.EmitErr(ctx, err, "Cannot create store session.")
@@ -1063,7 +1068,7 @@ func (h adminPermissionGroupCreate) ServeHTTP(w http.ResponseWriter, r *http.Req
 
 		templateContext.Description = strings.TrimSpace(r.Form.Get("description"))
 		if templateContext.Description == "" {
-			templateContext.Errors.AddRequired("description")
+			templateContext.Errors.Add("description", trans.T("Description is required."))
 		}
 
 		if templateContext.Errors.Empty() {
@@ -1105,6 +1110,8 @@ func (h adminPermissionGroupDetails) ServeHTTP(w http.ResponseWriter, r *http.Re
 	}
 
 	ctx := r.Context()
+	trans := transFor(ctx)
+
 	session, err := h.store.Session(ctx)
 	if err != nil {
 		alert.EmitErr(ctx, err, "Cannot create store session.")
@@ -1119,7 +1126,7 @@ func (h adminPermissionGroupDetails) ServeHTTP(w http.ResponseWriter, r *http.Re
 	case err == nil:
 		// All good.
 	case errors.Is(err, ErrNotFound):
-		renderAdminErr(w, h.conf, http.StatusNotFound, "Permission Group does not exist.")
+		renderAdminErr(w, h.conf, http.StatusNotFound, trans.T("Permission Group does not exist."))
 		return
 	default:
 		alert.EmitErr(ctx, err, "Cannot get permission group.",
@@ -1162,7 +1169,7 @@ func (h adminPermissionGroupDetails) ServeHTTP(w http.ResponseWriter, r *http.Re
 
 		templateContext.Description = strings.TrimSpace(r.Form.Get("description"))
 		if templateContext.Description == "" {
-			templateContext.Errors.AddRequired("description")
+			templateContext.Errors.Add("description", trans.T("Description is required."))
 		}
 
 		if templateContext.Errors.Empty() {
@@ -1295,7 +1302,8 @@ func adminOrRedirect(w http.ResponseWriter, r *http.Request, conf AdminPanelConf
 		return nil, false
 	}
 	if !acc.HasPermission("lith-admin") {
-		renderAdminErr(w, conf, http.StatusForbidden, "Not allowed to access admin panel.")
+		trans := transFor(r.Context())
+		renderAdminErr(w, conf, http.StatusForbidden, trans.T("Not allowed to access admin panel."))
 		return nil, false
 	}
 	return acc, true
