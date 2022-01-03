@@ -15,7 +15,7 @@
       <input type="text" name="description" value="{{.Description}}"required>
       {{if .Errors.description}}
         <div class="infobox red">
-          {{range.Errors.description}}
+          {{range .Errors.description}}
             {{.}}
           {{end}}
         </div>
@@ -30,7 +30,7 @@
       </textarea>
       {{if .Errors.permissions}}
         <div class="infobox red">
-          {{range.Errors.permissions}}
+          {{range .Errors.permissions}}
             {{.}}
           {{end}}
         </div>

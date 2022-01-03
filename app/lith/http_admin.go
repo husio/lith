@@ -794,6 +794,8 @@ func (h adminAccountCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
+	trans := transFor(ctx)
+
 	session, err := h.store.Session(ctx)
 	if err != nil {
 		alert.EmitErr(ctx, err, "Cannot create store session.")
@@ -806,7 +808,14 @@ func (h adminAccountCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// form can be used to do it.
 	randomPassword := hex.EncodeToString(secret.Generate(16))
 	account, err := session.CreateAccount(ctx, templateContext.Email, randomPassword)
-	if err != nil {
+	switch {
+	case err == nil:
+		// All good.
+	case errors.Is(err, ErrConflict):
+		templateContext.Errors.Add("email", trans.T("Email address already in use."))
+		tmpl.Render(w, http.StatusBadRequest, "admin_account_create.html", templateContext)
+		return
+	default:
 		alert.EmitErr(ctx, err, "Cannot create account.")
 		renderAdminErr(w, h.conf, http.StatusInternalServerError, "")
 		return
@@ -819,7 +828,6 @@ func (h adminAccountCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		renderAdminErr(w, h.conf, http.StatusInternalServerError, "")
 		return
 	}
-	trans := transFor(ctx)
 	h.flash.Notify(w, r, FlashMsg{
 		Kind: "green",
 		Text: fmt.Sprintf(trans.T("Account %q successfully created."), account.Email),

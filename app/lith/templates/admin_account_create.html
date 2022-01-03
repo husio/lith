@@ -14,6 +14,13 @@
       {{translate "Email"}}
       <input name="email" value="{{.Email}}" required>
     </label>
+    {{if .Errors.email }}
+        <div class="infobox red">
+          {{range .Errors.email}}
+            {{.}}
+          {{end}}
+        </div>
+    {{end}}
 
     <label>
       {{translate "Password"}}

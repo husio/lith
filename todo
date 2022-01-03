@@ -2,12 +2,6 @@ A placeholder file for tasks that cannot be placed in code.
 
 TODO: tests
 
-Flaky test
---- FAIL: TestLoginWithSecondFactor (2.81s)
-    --- FAIL: TestLoginWithSecondFactor/valid_but_already_used_2fa_code (0.23s)
-            http_public_test.go:209: validate totp: invalid
-
-
 ^^^^^^^ 0.2 ^^^^^^^
 
 TODO: revisit all templates, fix wording and styling
