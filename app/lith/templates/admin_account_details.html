@@ -4,9 +4,11 @@
   <ul>
     <li><a href="../../">Admin Panel</a></li>
     <li><a href="../">Accounts</a></li>
-    <li>{{translate "Account of"}} <em>{{.Account.Email}}</em>" </li>
+    <li>{{translate "Account of"}} <em>{{.Account.Email}}</em> </li>
   </ul>
 </nav>
+
+{{template "admin_flashmsg.html" .FlashMsg}}
 
 <form method="POST" action=".">
   <header>

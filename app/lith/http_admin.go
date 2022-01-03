@@ -2,8 +2,10 @@ package lith
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
@@ -43,6 +45,8 @@ func AdminHandler(
 	admin.MethodNotAllowed = adminDefaultHandler{code: http.StatusMethodNotAllowed}
 	admin.NotFound = adminDefaultHandler{code: http.StatusNotFound}
 
+	flash := flashmsg{safe: safe, pathPrefix: conf.PathPrefix}
+
 	p := conf.PathPrefix
 	admin.Add(`GET      `+p, adminIndex{store: store, conf: conf})
 	admin.Add(`GET,POST `+p+`login/ `, adminLogin{store: store, conf: conf})
@@ -50,11 +54,11 @@ func AdminHandler(
 	admin.Add(`GET      `+p+`logout/ `, adminLogout{store: store, conf: conf})
 	admin.Add(`GET,POST `+p+`twofactor/enable/`, adminTwoFactorAuthEnable{store: store, cache: cache, conf: conf, safe: safe})
 	admin.Add(`GET      `+p+`accounts/`, adminAccountsList{store: store, conf: conf})
-	admin.Add(`GET,POST `+p+`accounts/create/`, adminAccountCreate{store: store, conf: conf})
-	admin.Add(`GET,POST `+p+`accounts/{account-id}/`, adminAccountDetails{store: store, conf: conf})
-	admin.Add(`GET      `+p+`permissiongroups/`, adminPermissionGroupsList{store: store, conf: conf})
-	admin.Add(`GET,POST `+p+`permissiongroups/create/`, adminPermissionGroupCreate{store: store, conf: conf})
-	admin.Add(`GET,POST `+p+`permissiongroups/{permissiongroup-id:\d+}/`, adminPermissionGroupDetails{store: store, conf: conf})
+	admin.Add(`GET,POST `+p+`accounts/create/`, adminAccountCreate{store: store, conf: conf, flash: flash})
+	admin.Add(`GET,POST `+p+`accounts/{account-id}/`, adminAccountDetails{store: store, conf: conf, flash: flash})
+	admin.Add(`GET      `+p+`permissiongroups/`, adminPermissionGroupsList{store: store, conf: conf, flash: flash})
+	admin.Add(`GET,POST `+p+`permissiongroups/create/`, adminPermissionGroupCreate{store: store, conf: conf, flash: flash})
+	admin.Add(`GET,POST `+p+`permissiongroups/{permissiongroup-id:\d+}/`, adminPermissionGroupDetails{store: store, conf: conf, flash: flash})
 	admin.Add(`GET      `+p+`changelogs/`, adminChangelogsList{store: store, conf: conf})
 	admin.Use(
 		web.RequestIDMiddleware(),
@@ -509,6 +513,7 @@ func (h adminTwoFactorAuthEnable) ServeHTTP(w http.ResponseWriter, r *http.Reque
 		EphemeralSecretToken string
 		QRCodeBase64         string
 		CSRFField            template.HTML
+		FlashMsg             *FlashMsg
 	}{
 		adminTemplateCore: newAdminTemplateCore(h.conf, "Enable Two Factor"),
 		CurrentAccount:    account,
@@ -746,6 +751,7 @@ func (h adminAccountsList) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 type adminAccountCreate struct {
 	store Store
+	flash flashmsg
 	conf  AdminPanelConfiguration
 }
 
@@ -813,6 +819,11 @@ func (h adminAccountCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		renderAdminErr(w, h.conf, http.StatusInternalServerError, "")
 		return
 	}
+	trans := transFor(ctx)
+	h.flash.Notify(w, r, FlashMsg{
+		Kind: "green",
+		Text: fmt.Sprintf(trans.T("Account %q successfully created."), account.Email),
+	})
 	http.Redirect(w, r, h.conf.PathPrefix+"accounts/"+account.AccountID+"/", http.StatusSeeOther)
 	return
 }
@@ -820,6 +831,7 @@ func (h adminAccountCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type adminAccountDetails struct {
 	store Store
 	conf  AdminPanelConfiguration
+	flash flashmsg
 }
 
 func (h adminAccountDetails) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -840,6 +852,7 @@ func (h adminAccountDetails) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		AccountTwoFactor bool
 		PermissionGroups []*ExtendedPermissionGroup
 		CSRFField        template.HTML
+		FlashMsg         *FlashMsg
 	}{
 		adminTemplateCore: newAdminTemplateCore(h.conf, "Accounts"),
 		CurrentAccount:    currentAccount,
@@ -911,6 +924,12 @@ func (h adminAccountDetails) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		trans := transFor(ctx)
+		h.flash.Notify(w, r, FlashMsg{
+			Kind: "green",
+			Text: fmt.Sprintf(trans.T("Account %q successfully updated."), account.Email),
+		})
+
 		http.Redirect(w, r, h.conf.PathPrefix+"accounts/"+account.AccountID+"/", http.StatusSeeOther)
 		return
 	}
@@ -940,12 +959,13 @@ func (h adminAccountDetails) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	templateContext.PermissionGroups = extGroups
-
+	templateContext.FlashMsg = h.flash.Pop(w, r)
 	tmpl.Render(w, http.StatusOK, "admin_account_details.html", templateContext)
 }
 
 type adminPermissionGroupsList struct {
 	store Store
+	flash flashmsg
 	conf  AdminPanelConfiguration
 }
 
@@ -959,6 +979,7 @@ func (h adminPermissionGroupsList) ServeHTTP(w http.ResponseWriter, r *http.Requ
 		adminTemplateCore
 		CurrentAccount   *Account
 		PermissionGroups []*PermissionGroup
+		FlashMsg         *FlashMsg
 	}{
 		adminTemplateCore: newAdminTemplateCore(h.conf, "Permission Groups"),
 		CurrentAccount:    account,
@@ -980,11 +1001,13 @@ func (h adminPermissionGroupsList) ServeHTTP(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	templateContext.PermissionGroups = groups
+	templateContext.FlashMsg = h.flash.Pop(w, r)
 	tmpl.Render(w, http.StatusOK, "admin_permissiongroups_list.html", templateContext)
 }
 
 type adminPermissionGroupCreate struct {
 	store Store
+	flash flashmsg
 	conf  AdminPanelConfiguration
 }
 
@@ -1048,6 +1071,11 @@ func (h adminPermissionGroupCreate) ServeHTTP(w http.ResponseWriter, r *http.Req
 				renderAdminErr(w, h.conf, http.StatusInternalServerError, "")
 				return
 			}
+			trans := transFor(ctx)
+			h.flash.Notify(w, r, FlashMsg{
+				Kind: "green",
+				Text: fmt.Sprintf(trans.T("Permission Group %q successfully created."), group.Description),
+			})
 			http.Redirect(w, r, h.conf.PathPrefix+"permissiongroups/", http.StatusSeeOther)
 			return
 		}
@@ -1058,6 +1086,7 @@ func (h adminPermissionGroupCreate) ServeHTTP(w http.ResponseWriter, r *http.Req
 
 type adminPermissionGroupDetails struct {
 	store Store
+	flash flashmsg
 	conf  AdminPanelConfiguration
 }
 
@@ -1099,6 +1128,7 @@ func (h adminPermissionGroupDetails) ServeHTTP(w http.ResponseWriter, r *http.Re
 		Permissions     []string
 		Errors          validation.Errors
 		CSRFField       template.HTML
+		FlashMsg        *FlashMsg
 	}{
 		adminTemplateCore: newAdminTemplateCore(h.conf, "Permission Group: "+group.Description),
 		CurrentAccount:    currentAccount,
@@ -1142,11 +1172,17 @@ func (h adminPermissionGroupDetails) ServeHTTP(w http.ResponseWriter, r *http.Re
 				renderAdminErr(w, h.conf, http.StatusInternalServerError, "")
 				return
 			}
+			trans := transFor(ctx)
+			h.flash.Notify(w, r, FlashMsg{
+				Kind: "green",
+				Text: fmt.Sprintf(trans.T("Permission Group %q successfully updated."), group.Description),
+			})
 			http.Redirect(w, r, r.URL.Path, http.StatusSeeOther)
 			return
 		}
 	}
 
+	templateContext.FlashMsg = h.flash.Pop(w, r)
 	tmpl.Render(w, http.StatusOK, "admin_permissiongroup_details.html", templateContext)
 }
 
@@ -1334,3 +1370,81 @@ func addChangelog(ctx context.Context, s StoreSession, operation, entityKind str
 		return
 	}
 }
+
+// flashmsg provides a single flash message storage that is using HTTP cookie.
+//
+// Implementation is limited to at most only one message at a time to simplify
+// the implementation and the usage. Use this functionality for delivering
+// helpful but not important messages. A flash message might not be delivered.
+type flashmsg struct {
+	safe       secret.Safe
+	pathPrefix string
+}
+
+type FlashMsg struct {
+	Kind string `json:"k"`
+	Text string `json:"t"`
+}
+
+func (m FlashMsg) HTML() template.HTML {
+	return template.HTML(m.Text)
+}
+
+func (fm flashmsg) Notify(w http.ResponseWriter, r *http.Request, msg FlashMsg) error {
+	serialized, err := json.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("json serialize: %w", err)
+	}
+
+	noise := make([]byte, flashNoisePrefixSize, flashNoisePrefixSize+len(serialized))
+	if _, err := rand.Read(noise); err != nil {
+		panic(err)
+	}
+
+	raw, err := fm.safe.Encrypt(append(noise, serialized...))
+	if err != nil {
+		return fmt.Errorf("encrypt: %w", err)
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     "fm",
+		Path:     fm.pathPrefix,
+		Value:    base64.URLEncoding.EncodeToString(raw),
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   int(30 * time.Minute / time.Second),
+		HttpOnly: true,
+	})
+	return nil
+}
+
+func (fm flashmsg) Pop(w http.ResponseWriter, r *http.Request) *FlashMsg {
+	c, err := r.Cookie("fm")
+	if err != nil {
+		return nil
+	}
+	raw, err := base64.URLEncoding.DecodeString(c.Value)
+	if err != nil {
+		return nil
+	}
+	serialized, err := fm.safe.Decrypt(raw)
+	if err != nil {
+		return nil
+	}
+
+	var msg FlashMsg
+	if err := json.Unmarshal(serialized[flashNoisePrefixSize:], &msg); err != nil {
+		return nil
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     "fm",
+		Path:     fm.pathPrefix,
+		Value:    "",
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   -1,
+		HttpOnly: true,
+	})
+	return &msg
+}
+
+// noise prefix is used to ensure encrypted data is not too short and produce
+// weak encryption. Add random junk to make the cracking harder.
+const flashNoisePrefixSize = 32
