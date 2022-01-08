@@ -1,52 +1,23 @@
 A placeholder file for tasks that cannot be placed in code.
 
 TODO: tests
-
-^^^^^^^ 0.2 ^^^^^^^
-
 TODO: revisit all templates, fix wording and styling
 TODO: lib/client must implement full API
-
-^^^^^^^ 0.3 ^^^^^^^
-
 TODO: deploy an example for API and public UI usage (heroku? digitalocean?)
 TODO: revisig CSS of public UI
-
-^^^^^^^ 0.4 ^^^^^^^
-
 TODO: write a README
 TODO: documentation and examples
-
-^^^^^^^ 0.5 ^^^^^^^
-
-TODO: release!
-
-^^^^^^^ 1.0 ^^^^^^^
-
-TODO: allow to ovewrite templates
 TODO: update configuration to replace time.Duration with something string serializable
-
-^^^^^^^ 1.1 ^^^^^^^
-
 TODO: translations
-
-^^^^^^^ 1.2 ^^^^^^^
-
 TODO: add events to enable metrics via plugin package (prometheus cannot be compiled with shared flag?)
 TODO: admin password reset
 
-^^^^^^^ 1.3 ^^^^^^^
 
-
-
-
-update returned JSON error, separate general error and validation errors
-add expiration information to session response
-acme protocol support for automatic SSL granting
-after-registration webhook execution
-ssh integration (login/second factor)
-telegram integration (second factor)
-update CI to build artifacts: binary and docker image
-add alternative storage and task quue implementations using Postgres & Redis/Memcache
-
-^^^^^^^ random ideas ^^^^^^^
+TODO: update returned JSON error, separate general error and validation errors
+TODO: add expiration information to session response
+TODO: acme protocol support for automatic SSL granting
+TODO: after-registration webhook execution
+TODO: ssh integration (login/second factor)
+TODO: telegram integration (second factor)
+TODO: update CI to build artifacts: binary and docker image
+TODO: add alternative storage and task queue implementations using Postgres & Redis/Memcache
