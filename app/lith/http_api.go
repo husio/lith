@@ -425,7 +425,13 @@ func (h apiAccountCreateComplete) ServeHTTP(w http.ResponseWriter, r *http.Reque
 			"account_id", account.AccountID)
 	}
 
+	taskID, err := h.queue.Schedule(ctx, AccountRegisteredEvent{
+		EventID: generateID(),
+		Account: *account,
+	}, taskqueue.Delay(3*time.Second)) // Delay so that it can be cancelled if needed.
+
 	if err := session.Commit(); err != nil {
+		_ = h.queue.Cancel(ctx, taskID)
 		alert.EmitErr(ctx, err, "Cannot commit session.")
 		web.WriteJSONStdErr(w, http.StatusInternalServerError)
 		return

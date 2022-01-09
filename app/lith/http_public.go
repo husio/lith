@@ -43,7 +43,7 @@ func PublicHandler(
 
 	if conf.AllowRegisterAccount {
 		public.Add(`GET,POST `+p+`register/`, publicRegister{store: store, queue: queue, conf: conf})
-		public.Add(`GET,POST `+p+`register/{token}/`, publicRegisterComplete{store: store, conf: conf})
+		public.Add(`GET,POST `+p+`register/{token}/`, publicRegisterComplete{store: store, conf: conf, queue: queue})
 	}
 
 	if conf.AllowPasswordReset {
@@ -1011,6 +1011,7 @@ func registerCompleteURL(https bool, domain, pathPrefix, token string) string {
 
 type publicRegisterComplete struct {
 	store Store
+	queue taskqueue.Scheduler
 	conf  PublicUIConfiguration
 }
 
@@ -1104,7 +1105,13 @@ func (h publicRegisterComplete) ServeHTTP(w http.ResponseWriter, r *http.Request
 			"account_id", account.AccountID)
 	}
 
+	taskID, err := h.queue.Schedule(ctx, AccountRegisteredEvent{
+		EventID: generateID(),
+		Account: *account,
+	}, taskqueue.Delay(3*time.Second)) // Delay so that it can be cancelled if needed.
+
 	if err := session.Commit(); err != nil {
+		_ = h.queue.Cancel(ctx, taskID)
 		alert.EmitErr(ctx, err, "Cannot commit session.")
 		renderPublicErr(w, h.conf, http.StatusInternalServerError, "")
 		return

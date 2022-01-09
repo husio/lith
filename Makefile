@@ -41,15 +41,17 @@ run-test-mailserver:
 
 run-demo: build-lith
 	@bin/lith -conf examples/lith.conf useradd -email admin@example.com -password "admin" -groups=1,2 -allow-insecure 2> /dev/null || true
-	@echo
-	@echo
+	@echo ""
+	@echo ""
 	@echo "Running public UI on http://localhost:8000/login/"
 	@echo "Running admin panel on http://localhost:8001"
 	@echo "Emails are written to /tmp/lith_outgoing_emails/"
-	@echo
-	@echo "Admin email is admin@example.com, password \"admin\""
-	@echo
-	@echo
+	@echo ""
+	@echo "Admin credentials are"
+	@echo "      email:  admin@example.com"
+	@echo "   password:  admin"
+	@echo ""
+	@echo ""
 	@echo "Press Ctrl+c to stop the application."
 	@bin/lith -conf examples/lith.conf serve
 

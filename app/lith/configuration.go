@@ -8,6 +8,9 @@ type Configuration struct {
 	Secret               string
 	StoreVacuumFrequency time.Duration
 
+	// An optional webhook configuration.
+	Webhook WebhookConfiguration
+
 	// Email configuraiton.
 	//
 	// EmailBackend specifies which backend to use. Choices are: smtp fs
@@ -24,6 +27,16 @@ type Configuration struct {
 	AdminPanel AdminPanelConfiguration
 	PublicUI   PublicUIConfiguration
 	API        APIConfiguration
+}
+
+type WebhookConfiguration struct {
+	// URL is the address of the recipient. If not set, webhook
+	// functionality is disabled.
+	URL string
+
+	// Secret is shared between client and server, used to sign the
+	// request.
+	Secret string
 }
 
 type SMTPConfiguration struct {

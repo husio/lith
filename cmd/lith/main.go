@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
@@ -229,6 +230,15 @@ func checkConfiguration(c lith.Configuration) []string {
 		}
 		if c.API.FromEmail == "" {
 			issues = append(issues, "API.FromEmail must not be empty.")
+		}
+	}
+
+	if c.Webhook.URL != "" {
+		if _, err := url.Parse(c.Webhook.URL); err != nil {
+			issues = append(issues, fmt.Sprintf("Webhook.URL is invalid: %s", err))
+		}
+		if c.Webhook.Secret == "" {
+			issues = append(issues, "Webhook.Secret is required.")
 		}
 	}
 

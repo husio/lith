@@ -54,7 +54,7 @@ func AdminHandler(
 	admin.Add(`GET      `+p+`logout/ `, adminLogout{store: store, conf: conf})
 	admin.Add(`GET,POST `+p+`twofactor/enable/`, adminTwoFactorAuthEnable{store: store, cache: cache, conf: conf, safe: safe})
 	admin.Add(`GET      `+p+`accounts/`, adminAccountsList{store: store, conf: conf})
-	admin.Add(`GET,POST `+p+`accounts/create/`, adminAccountCreate{store: store, conf: conf, flash: flash})
+	admin.Add(`GET,POST `+p+`accounts/create/`, adminAccountCreate{store: store, conf: conf, flash: flash, queue: queue})
 	admin.Add(`GET,POST `+p+`accounts/{account-id}/`, adminAccountDetails{store: store, conf: conf, flash: flash})
 	admin.Add(`GET      `+p+`permissiongroups/`, adminPermissionGroupsList{store: store, conf: conf, flash: flash})
 	admin.Add(`GET,POST `+p+`permissiongroups/create/`, adminPermissionGroupCreate{store: store, conf: conf, flash: flash})
@@ -755,6 +755,7 @@ func (h adminAccountsList) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type adminAccountCreate struct {
 	store Store
 	flash flashmsg
+	queue taskqueue.Scheduler
 	conf  AdminPanelConfiguration
 }
 
@@ -826,8 +827,14 @@ func (h adminAccountCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	addChangelog(ctx, session, "created", "Account", account.AccountID)
 
+	taskID, err := h.queue.Schedule(ctx, AccountRegisteredEvent{
+		EventID: generateID(),
+		Account: *account,
+	}, taskqueue.Delay(3*time.Second)) // Delay so that it can be cancelled if needed.
+
 	if err := session.Commit(); err != nil {
 		alert.EmitErr(ctx, err, "Cannot commit session.")
+		_ = h.queue.Cancel(ctx, taskID)
 		renderAdminErr(w, h.conf, http.StatusInternalServerError, "")
 		return
 	}
