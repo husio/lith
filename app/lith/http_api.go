@@ -39,7 +39,7 @@ func APIHandler(
 	rt.Add(`POST   `+p+`twofactor`, apiTwoFactorEnable{store: store, conf: conf, cache: cache})
 	if conf.AllowRegisterAccount {
 		rt.Add(`POST   `+p+`accounts`, apiAccountCreateInit{store: store, conf: conf, queue: queue})
-		rt.Add(`PUT    `+p+`accounts`, apiAccountCreateComplete{store: store, conf: conf})
+		rt.Add(`PUT    `+p+`accounts`, apiAccountCreateComplete{store: store, conf: conf, queue: queue})
 	}
 	if conf.AllowPasswordReset {
 		rt.Add(`POST   `+p+`passwordreset`, apiPasswordResetInit{store: store, conf: conf, queue: queue})
@@ -147,7 +147,7 @@ func (h apiPasswordResetInit) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		Token:        token,
 		AccountEmail: account.Email,
 		CompleteURL:  completeURL,
-	}, taskqueue.Delay(3*time.Second)) // Delay so that it can be cancelled if needed.
+	}, taskqueue.Delay(2*time.Second)) // Delay so that it can be cancelled if needed.
 	if err != nil {
 		alert.EmitErr(ctx, err, "Cannot schedule SendResetPassword task")
 		web.WriteJSONStdErr(w, http.StatusInternalServerError)
@@ -327,7 +327,7 @@ func (h apiAccountCreateInit) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		AccountEmail: input.Email,
 		Token:        token,
 		CompleteURL:  completeURL,
-	}, taskqueue.Delay(3*time.Second)) // Delay so that it can be cancelled if needed.
+	}, taskqueue.Delay(2*time.Second)) // Delay so that it can be cancelled if needed.
 	if err != nil {
 		alert.EmitErr(ctx, err, "Cannot schedule SendConfirmRegistration task")
 		web.WriteJSONStdErr(w, http.StatusInternalServerError)
@@ -428,7 +428,7 @@ func (h apiAccountCreateComplete) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	taskID, err := h.queue.Schedule(ctx, AccountRegisteredEvent{
 		EventID: generateID(),
 		Account: *account,
-	}, taskqueue.Delay(3*time.Second)) // Delay so that it can be cancelled if needed.
+	}, taskqueue.Delay(2*time.Second)) // Delay so that it can be cancelled if needed.
 
 	if err := session.Commit(); err != nil {
 		_ = h.queue.Cancel(ctx, taskID)

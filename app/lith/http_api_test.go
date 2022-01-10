@@ -357,7 +357,7 @@ func TestAPICreateAccount(t *testing.T) {
 		Email string `json:"email"`
 	}{
 		Email: "danny@example.com",
-	}))
+	})).WithContext(ctx)
 	w := httptest.NewRecorder()
 	app.ServeHTTP(w, r)
 	if want, got := http.StatusAccepted, w.Code; want != got {
@@ -379,7 +379,7 @@ func TestAPICreateAccount(t *testing.T) {
 	}{
 		Password: shortPass,
 		Token:    task.Token,
-	}))
+	})).WithContext(ctx)
 	w = httptest.NewRecorder()
 	app.ServeHTTP(w, r)
 	if want, got := http.StatusBadRequest, w.Code; want != got {
@@ -394,7 +394,7 @@ func TestAPICreateAccount(t *testing.T) {
 	}{
 		Password: goodPass,
 		Token:    task.Token,
-	}))
+	})).WithContext(ctx)
 	w = httptest.NewRecorder()
 	app.ServeHTTP(w, r)
 	if want, got := http.StatusCreated, w.Code; want != got {
@@ -407,11 +407,24 @@ func TestAPICreateAccount(t *testing.T) {
 		t.Fatalf("decode response body: %s", err)
 	}
 
+	var account *Account
 	atomic(t, store, func(s StoreSession) {
-		if _, err := s.AccountByID(ctx, created.AccountID); err != nil {
+		var err error
+		account, err = s.AccountByID(ctx, created.AccountID)
+		if err != nil {
 			t.Fatal("created account cannot be found")
 		}
 	})
+
+	// When an account is registered, an event must be emitted.
+	var event AccountRegisteredEvent
+	tasks.LoadRecorded(t, 1, &event)
+	if event.EventID == "" {
+		t.Errorf("event ID not set")
+	}
+	if !reflect.DeepEqual(event.Account, *account) {
+		t.Fatalf("emitted event has invalid payload: %+v", event.Account)
+	}
 }
 
 func TestAPIResetPasswordUnknownEmail(t *testing.T) {

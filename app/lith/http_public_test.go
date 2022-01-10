@@ -244,6 +244,10 @@ func TestPublicRegisterAccount(t *testing.T) {
 		}
 	})
 
+	if len(tasks.Scheduled) != 1 {
+		t.Fatalf("a single task is expected so far, found %d\n%+v", len(tasks.Scheduled), tasks.Scheduled)
+	}
+
 	body = url.Values{
 		"token":           []string{task.Token},
 		"password":        []string{strings.Repeat("a", int(conf.MinPasswordLength))},
@@ -266,6 +270,16 @@ func TestPublicRegisterAccount(t *testing.T) {
 		}
 		if !reflect.DeepEqual(a.Permissions, []string{"login"}) {
 			t.Fatalf("unexpected permissions: %q", a.Permissions)
+		}
+
+		// When an account is registered, an event must be emitted.
+		var event AccountRegisteredEvent
+		tasks.LoadRecorded(t, 1, &event)
+		if event.EventID == "" {
+			t.Errorf("event ID not set")
+		}
+		if !reflect.DeepEqual(event.Account, *a) {
+			t.Fatalf("emitted event has invalid payload\n  got: %+v\n want: %+v", event.Account, *a)
 		}
 	})
 }

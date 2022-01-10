@@ -1102,7 +1102,19 @@ func (h publicRegisterComplete) ServeHTTP(w http.ResponseWriter, r *http.Request
 
 	if err := session.UpdateAccountPermissionGroups(ctx, account.AccountID, h.conf.RegisteredAccountPermissionGroups); err != nil {
 		alert.EmitErr(ctx, err, "Cannot assign permission group.",
-			"account_id", account.AccountID)
+			"account_id", account.AccountID,
+			"token", token)
+	}
+
+	// Permission groups were updated so fetch the account once more to get
+	// the most recent permissions list.
+	account, err = session.AccountByID(ctx, account.AccountID)
+	if err != nil {
+		alert.EmitErr(ctx, err, "Cannot fetch account account.",
+			"account_id", account.AccountID,
+			"token", token)
+		renderPublicErr(w, h.conf, http.StatusInternalServerError, "")
+		return
 	}
 
 	taskID, err := h.queue.Schedule(ctx, AccountRegisteredEvent{
