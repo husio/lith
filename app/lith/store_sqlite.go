@@ -491,30 +491,34 @@ func (s *sqliteStoreSession) CreateSession(ctx context.Context, accountID string
 	return sessionID, nil
 }
 
-func (s *sqliteStoreSession) RefreshSession(ctx context.Context, sessionID string, expiresIn time.Duration) error {
+func (s *sqliteStoreSession) RefreshSession(ctx context.Context, sessionID string, expiresIn time.Duration) (time.Time, error) {
 	now := currentTime()
 
 	// To avoid writes, update session expiration time only if it is beyond
 	// certain threshold. In practice, we allow for a small delay with
 	// update.
-	updateIfOlder := now.Add(expiresIn / 10 * 9)
+	const threshold = 10 * time.Second
+
 	_, err := s.dbc.ExecContext(ctx, `
 			UPDATE sessions
 			SET expires_at = @expires_at
-			WHERE session_id = @session_id AND expires_at > @older_than
+			WHERE session_id = @session_id AND expires_at < @expires_at - @threshold
 		`,
 		sql.Named("session_id", sessionID),
 		sql.Named("expires_at", now.Add(expiresIn).Unix()),
-		sql.Named("older_than", updateIfOlder.Unix()),
+		sql.Named("threshold", threshold/time.Second),
 	)
 	if err != nil {
-		return fmt.Errorf("update: %w", err)
+		return time.Time{}, fmt.Errorf("update: %w", err)
 	}
 
-	// Because of how the query filters, we cannot return ErrNotFound
-	// without making an additional db call.
-
-	return nil
+	var expiresAt int64
+	if err := s.dbc.QueryRowContext(ctx, `
+		SELECT expires_at FROM sessions WHERE session_id = ? LIMIT 1
+	`, sessionID).Scan(&expiresAt); err != nil {
+		return time.Time{}, castSQLiteErr(err)
+	}
+	return time.Unix(expiresAt, 0), nil
 }
 
 func (s *sqliteStoreSession) DeleteSession(ctx context.Context, sessionID string) error {

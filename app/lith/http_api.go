@@ -59,9 +59,10 @@ func APIHandler(
 }
 
 type responseAccountSession struct {
-	AccountID   string   `json:"account_id"`
-	SessionID   string   `json:"session_id"`
-	Permissions []string `json:"permissions"`
+	AccountID   string    `json:"account_id"`
+	SessionID   string    `json:"session_id"`
+	Permissions []string  `json:"permissions"`
+	ExpiresAt   time.Time `json:"expires_at"`
 }
 
 type apiDefaultHandler struct {
@@ -453,12 +454,13 @@ func (h apiSessionIntrospect) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	ctx := r.Context()
 	a, ok := CurrentAccount(ctx)
 	if !ok {
-		web.WriteJSONErr(w, http.StatusUnauthorized, "Missing session key.")
+		web.WriteJSONErr(w, http.StatusUnauthorized, "Missing or invalid session key.")
 		return
 	}
 
 	sessionID, _ := CurrentSessionID(ctx)
-	if err := refreshAuthSession(ctx, h.store, sessionID, h.conf.SessionRefreshAge); err != nil {
+	expiresAt, err := refreshAuthSession(ctx, h.store, sessionID, h.conf.SessionRefreshAge)
+	if err != nil {
 		alert.EmitErr(ctx, err, "Cannot refresh auth session.")
 		// Not critical for the session introspection.
 	}
@@ -466,24 +468,23 @@ func (h apiSessionIntrospect) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		SessionID:   sessionID,
 		AccountID:   a.AccountID,
 		Permissions: a.Permissions,
+		ExpiresAt:   expiresAt,
 	})
 }
 
-func refreshAuthSession(ctx context.Context, store Store, sessionID string, refresh time.Duration) error {
-	if refresh == 0 {
-		return nil
-	}
+func refreshAuthSession(ctx context.Context, store Store, sessionID string, refresh time.Duration) (time.Time, error) {
 	session, err := store.Session(ctx)
 	if err != nil {
-		return fmt.Errorf("create database session: %w", err)
+		return time.Time{}, fmt.Errorf("create database session: %w", err)
 	}
-	if err := session.RefreshSession(ctx, sessionID, refresh); err != nil {
-		return fmt.Errorf("refresh auth session: %w", err)
+	expiresAt, err := session.RefreshSession(ctx, sessionID, refresh)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("refresh auth session: %w", err)
 	}
 	if err := session.Commit(); err != nil {
-		return fmt.Errorf("commit database session: %w", err)
+		return time.Time{}, fmt.Errorf("commit database session: %w", err)
 	}
-	return nil
+	return expiresAt, nil
 }
 
 type apiSessionDelete struct {
@@ -660,6 +661,9 @@ func (h apiSessionCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		SessionID:   authSessionID,
 		AccountID:   account.AccountID,
 		Permissions: account.Permissions,
+
+		// This is a good enough estimation.
+		ExpiresAt: currentTime().Add(h.conf.SessionMaxAge),
 	})
 }
 

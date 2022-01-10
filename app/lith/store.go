@@ -82,20 +82,34 @@ type StoreSession interface {
 	// Returns ErrNotFound if account with given email cannot be found.
 	ListAccounts(ctx context.Context, filter string, limit, offset uint) ([]*Account, error)
 
-	// CreateSession
+	// CreateSession creates and returns a new session that is valid for
+	// given period.
+	//
 	// Returns ErrNotFound if an account with given ID does not exist.
 	CreateSession(ctx context.Context, accountID string, expiresIn time.Duration) (string, error)
 
-	// DeleteSession
+	// DeleteSession removes session from the system. Deleted session can
+	// no longer be used.
 	DeleteSession(ctx context.Context, sessionID string) error
 
-	// RefreshSession
-	RefreshSession(ctx context.Context, sessionID string, expiresIn time.Duration) error
+	// RefreshSession updates a session expiration time, extending it to at
+	// least given duration. If the current expiration time is greater than
+	// provided duration, no update is made.
+	//
+	// To avoid writes, this method works with expiration approximation. If
+	// expiration time is close to desired state, value might not be
+	// updated.
+	// This method can only extend expiration time and never shorten it.
+	//
+	// Returns ErrNotFound if session with given ID does not exist.
+	RefreshSession(ctx context.Context, sessionID string, expiresIn time.Duration) (time.Time, error)
 
 	// CreatePermissionGroup creates a new Permission Group.
 	CreatePermissionGroup(ctx context.Context, description string, permissions []string) (*PermissionGroup, error)
 
-	// UpdatePermissionGroup
+	// UpdatePermissionGroup is setting attributes of a single permission
+	// group to provided values.
+	//
 	// Returns ErrNotFound if Permission Group with given ID does not
 	// exist.
 	UpdatePermissionGroup(ctx context.Context, permissionGroupID uint64, description string, permissions []string) error

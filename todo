@@ -14,9 +14,7 @@ TODO: admin password reset
 
 
 TODO: update returned JSON error, separate general error and validation errors
-TODO: add expiration information to session response
 TODO: acme protocol support for automatic SSL granting
-TODO: after-registration webhook execution
 TODO: ssh integration (login/second factor)
 TODO: telegram integration (second factor)
 TODO: update CI to build artifacts: binary and docker image
