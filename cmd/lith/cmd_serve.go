@@ -16,6 +16,7 @@ import (
 	"github.com/husio/lith/pkg/alert"
 	"github.com/husio/lith/pkg/cache"
 	"github.com/husio/lith/pkg/email"
+	"github.com/husio/lith/pkg/eventbus"
 	"github.com/husio/lith/pkg/secret"
 	"github.com/husio/lith/pkg/taskqueue"
 )
@@ -61,16 +62,6 @@ func runServer(ctx context.Context, conf lith.Configuration) error {
 		return fmt.Errorf("email backend not supported: %s", conf.EmailBackend)
 	}
 
-	var eventSink lith.EventSink
-	switch conf.EventSinkBackend {
-	case "noop":
-		eventSink = lith.NoopEventSink{}
-	case "fs":
-		eventSink = lith.NewFsEventSink(conf.EventSinkFilesystem.Dir)
-	case "webhook":
-		eventSink = lith.NewHTTPWebhook(conf.EventSinkWebhook.URL, secret.Value(conf.EventSinkWebhook.Secret), nil)
-	}
-
 	queueStore, err := taskqueue.OpenTaskQueue(conf.TaskQueueDatabase)
 	if err != nil {
 		return fmt.Errorf("open task queue store: %w", err)
@@ -79,9 +70,18 @@ func runServer(ctx context.Context, conf lith.Configuration) error {
 	bgJobQueue := taskqueue.NewRegistry(queueStore)
 	bgJobQueue.MustRegister(lith.SendConfirmRegistration{}, lith.NewSendConfirmRegistrationHandler(emailserver))
 	bgJobQueue.MustRegister(lith.SendResetPassword{}, lith.NewSendResetPasswordHandler(emailserver))
-	bgJobQueue.MustRegister(lith.AccountRegisteredEvent{}, lith.NewAccountRegisteredEventHandler(eventSink))
 
-	// go http.ListenAndServe(":12345", queueStore)
+	var events eventbus.Sink
+	switch conf.EventSinkBackend {
+	case "noop":
+		events = eventbus.NewNoopSink()
+	case "fs":
+		events = eventbus.NewFsSink(conf.EventSinkFilesystem.Dir)
+	case "webhook":
+		events = eventbus.ThroughTaskQueue(
+			eventbus.NewWebhookSink(conf.EventSinkWebhook.URL, secret.Value(conf.EventSinkWebhook.Secret), nil),
+			bgJobQueue)
+	}
 
 	// Figure which application should run on which HTTP server. It is
 	// allowed to an serveral apps to run on the same server.
@@ -101,10 +101,10 @@ func runServer(ctx context.Context, conf lith.Configuration) error {
 			return fmt.Errorf("create admin secret: %w", err)
 		}
 		secret := sum.Sum(nil)
-		registerApp(addr, conf.PublicUI.PathPrefix, lith.PublicHandler(conf.PublicUI, store, cache, safe, secret, bgJobQueue))
+		registerApp(addr, conf.PublicUI.PathPrefix, lith.PublicHandler(conf.PublicUI, store, cache, safe, secret, events, bgJobQueue))
 	}
 	if addr := conf.API.ListenHTTP; addr != "" {
-		registerApp(addr, conf.API.PathPrefix, lith.APIHandler(conf.API, store, cache, bgJobQueue))
+		registerApp(addr, conf.API.PathPrefix, lith.APIHandler(conf.API, store, cache, events, bgJobQueue))
 	}
 
 	if addr := conf.AdminPanel.ListenHTTP; addr != "" {
@@ -113,7 +113,7 @@ func runServer(ctx context.Context, conf lith.Configuration) error {
 			return fmt.Errorf("create admin secret: %w", err)
 		}
 		secret := sum.Sum(nil)
-		registerApp(addr, conf.AdminPanel.PathPrefix, lith.AdminHandler(conf.AdminPanel, store, cache, safe, secret, bgJobQueue))
+		registerApp(addr, conf.AdminPanel.PathPrefix, lith.AdminHandler(conf.AdminPanel, store, cache, safe, secret, events))
 	}
 
 	errc := make(chan error)

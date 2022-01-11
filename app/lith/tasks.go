@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/husio/lith/pkg/email"
 	"github.com/husio/lith/pkg/taskqueue"
@@ -67,43 +66,4 @@ func (h sendResetPasswordHandler) HandleTask(ctx context.Context, sn taskqueue.S
 		return fmt.Errorf("render email template: %w", err)
 	}
 	return h.emailserver.Send(t.FromEmail, t.AccountEmail, "Password Reset", b.Bytes())
-}
-
-type AccountRegisteredEvent struct {
-	EventID string
-	Account Account
-}
-
-func (AccountRegisteredEvent) TaskName() string {
-	return "account-registered-event"
-}
-
-func NewAccountRegisteredEventHandler(sink EventSink) taskqueue.Handler {
-	return accountRegisteredEventHandler{sink: sink}
-}
-
-type accountRegisteredEventHandler struct {
-	sink EventSink
-}
-
-func (h accountRegisteredEventHandler) HandleTask(ctx context.Context, sn taskqueue.Scheduler, p taskqueue.Payload) error {
-	t := p.(*AccountRegisteredEvent)
-
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	data := struct {
-		AccountID   string    `json:"account_id"`
-		Permissions []string  `json:"permissions"`
-		CreatedAt   time.Time `json:"created_at"`
-	}{
-		AccountID:   t.Account.AccountID,
-		Permissions: t.Account.Permissions,
-		CreatedAt:   t.Account.CreatedAt,
-	}
-
-	if err := h.sink.PublishEvent(ctx, t.EventID, data); err != nil {
-		return fmt.Errorf("notify: %w", err)
-	}
-	return nil
 }

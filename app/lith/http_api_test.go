@@ -15,6 +15,7 @@ import (
 
 	"github.com/husio/lith/pkg/alert"
 	"github.com/husio/lith/pkg/cache"
+	"github.com/husio/lith/pkg/eventbus"
 	"github.com/husio/lith/pkg/secret"
 	"github.com/husio/lith/pkg/taskqueue"
 	"github.com/husio/lith/pkg/totp"
@@ -40,7 +41,7 @@ func TestAPIManageSessionNoTwoFactor(t *testing.T) {
 		accountID = insertAccount(t, s, "jim@example.com", "loginpass", "", []uint64{PermissionGroupActiveAccount})
 	})
 
-	app := APIHandler(conf, store, cache, nil)
+	app := APIHandler(conf, store, cache, eventbus.NewNoopSink(), nil)
 
 	r := httptest.NewRequest("POST", "/api/sessions", jsonBody(t, struct {
 		Email    string `json:"email"`
@@ -146,7 +147,7 @@ func TestAPICreateSessionWithTwoFactor(t *testing.T) {
 		accountID = insertAccount(t, s, "jim@example.com", "loginpass", "totpsecret", []uint64{PermissionGroupActiveAccount})
 	})
 
-	app := APIHandler(conf, store, cache, nil)
+	app := APIHandler(conf, store, cache, eventbus.NewNoopSink(), nil)
 
 	r := httptest.NewRequest("POST", "/api/sessions", jsonBody(t, struct {
 		Email    string `json:"email"`
@@ -215,7 +216,7 @@ func TestAPIEnableTwoFactorWithSession(t *testing.T) {
 		insertAccount(t, s, "bill@example.com", "loginpass", "", []uint64{PermissionGroupActiveAccount})
 	})
 
-	app := APIHandler(conf, store, cache, nil)
+	app := APIHandler(conf, store, cache, eventbus.NewNoopSink(), nil)
 
 	// Create session in order to access two factor info API.
 	r := httptest.NewRequest("POST", "/api/sessions", jsonBody(t, struct {
@@ -309,7 +310,7 @@ func TestAPIEnableTwoFactorWithCredentials(t *testing.T) {
 		insertAccount(t, s, "bill@example.com", "loginpass", "", []uint64{PermissionGroupActiveAccount})
 	})
 
-	app := APIHandler(conf, store, cache, nil)
+	app := APIHandler(conf, store, cache, eventbus.NewNoopSink(), nil)
 
 	now := time.Now()
 	secret := bytes.Repeat([]byte("a"), 32)
@@ -348,10 +349,12 @@ func TestAPICreateAccount(t *testing.T) {
 		RegisterAccountCompleteURL: "/register/{token}",
 	}
 
+	var events eventbus.RecordingSink
 	var tasks taskqueue.RecordingScheduler
 	store := newTestSQLiteStore(t)
 	cache := cache.NewLocalMemCache(1e6)
-	app := APIHandler(conf, store, cache, &tasks)
+
+	app := APIHandler(conf, store, cache, &events, &tasks)
 
 	r := httptest.NewRequest("POST", "/api/accounts", jsonBody(t, struct {
 		Email string `json:"email"`
@@ -407,24 +410,14 @@ func TestAPICreateAccount(t *testing.T) {
 		t.Fatalf("decode response body: %s", err)
 	}
 
-	var account *Account
 	atomic(t, store, func(s StoreSession) {
-		var err error
-		account, err = s.AccountByID(ctx, created.AccountID)
+		a, err := s.AccountByID(ctx, created.AccountID)
 		if err != nil {
 			t.Fatal("created account cannot be found")
 		}
+		events.AssertPublished(t, AccountRegisteredEvent{AccountID: a.AccountID, Email: a.Email})
 	})
 
-	// When an account is registered, an event must be emitted.
-	var event AccountRegisteredEvent
-	tasks.LoadRecorded(t, 1, &event)
-	if event.EventID == "" {
-		t.Errorf("event ID not set")
-	}
-	if !reflect.DeepEqual(event.Account, *account) {
-		t.Fatalf("emitted event has invalid payload: %+v", event.Account)
-	}
 }
 
 func TestAPIResetPasswordUnknownEmail(t *testing.T) {
@@ -442,7 +435,7 @@ func TestAPIResetPasswordUnknownEmail(t *testing.T) {
 	var tasks taskqueue.RecordingScheduler
 	store := newTestSQLiteStore(t)
 	cache := cache.NewLocalMemCache(1e6)
-	app := APIHandler(conf, store, cache, &tasks)
+	app := APIHandler(conf, store, cache, eventbus.NewNoopSink(), &tasks)
 
 	r := httptest.NewRequest("POST", "/api/passwordreset", jsonBody(t, struct {
 		Email string `json:"email"`
@@ -476,7 +469,7 @@ func TestAPIResetPasswordSuccess(t *testing.T) {
 	var tasks taskqueue.RecordingScheduler
 	store := newTestSQLiteStore(t)
 	cache := cache.NewLocalMemCache(1e6)
-	app := APIHandler(conf, store, cache, &tasks)
+	app := APIHandler(conf, store, cache, eventbus.NewNoopSink(), &tasks)
 
 	atomic(t, store, func(s StoreSession) {
 		insertAccount(t, s, "roger@example.com", "forgottenpassword", "", []uint64{PermissionGroupActiveAccount})

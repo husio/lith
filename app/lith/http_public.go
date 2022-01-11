@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/csrf"
 	"github.com/husio/lith/pkg/alert"
 	"github.com/husio/lith/pkg/cache"
+	"github.com/husio/lith/pkg/eventbus"
 	"github.com/husio/lith/pkg/secret"
 	"github.com/husio/lith/pkg/taskqueue"
 	"github.com/husio/lith/pkg/totp"
@@ -29,6 +30,7 @@ func PublicHandler(
 	cache cache.Store,
 	safe secret.Safe,
 	secret []byte,
+	events eventbus.Sink,
 	queue taskqueue.Scheduler,
 ) http.Handler {
 	public := web.NewRouter()
@@ -43,7 +45,7 @@ func PublicHandler(
 
 	if conf.AllowRegisterAccount {
 		public.Add(`GET,POST `+p+`register/`, publicRegister{store: store, queue: queue, conf: conf})
-		public.Add(`GET,POST `+p+`register/{token}/`, publicRegisterComplete{store: store, conf: conf, queue: queue})
+		public.Add(`GET,POST `+p+`register/{token}/`, publicRegisterComplete{store: store, conf: conf, events: events})
 	}
 
 	if conf.AllowPasswordReset {
@@ -1010,9 +1012,9 @@ func registerCompleteURL(https bool, domain, pathPrefix, token string) string {
 }
 
 type publicRegisterComplete struct {
-	store Store
-	queue taskqueue.Scheduler
-	conf  PublicUIConfiguration
+	store  Store
+	events eventbus.Sink
+	conf   PublicUIConfiguration
 }
 
 func (h publicRegisterComplete) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -1117,16 +1119,21 @@ func (h publicRegisterComplete) ServeHTTP(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	taskID, err := h.queue.Schedule(ctx, AccountRegisteredEvent{
-		EventID: generateID(),
-		Account: *account,
-	}, taskqueue.Delay(3*time.Second)) // Delay so that it can be cancelled if needed.
-
 	if err := session.Commit(); err != nil {
-		_ = h.queue.Cancel(ctx, taskID)
 		alert.EmitErr(ctx, err, "Cannot commit session.")
 		renderPublicErr(w, h.conf, http.StatusInternalServerError, "")
 		return
+	}
+
+	event := AccountRegisteredEvent{
+		AccountID: account.AccountID,
+		Email:     account.Email,
+	}
+	if err := h.events.PublishEvent(ctx, generateID(), account.CreatedAt, event); err != nil {
+		alert.EmitErr(ctx, err,
+			"Cannot emit event.",
+			"account", account.AccountID,
+			"event", "AccountRegisteredEvent")
 	}
 
 	templateContext.Next = registerContext.Next

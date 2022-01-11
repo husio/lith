@@ -14,6 +14,7 @@ import (
 
 	"github.com/husio/lith/pkg/alert"
 	"github.com/husio/lith/pkg/cache"
+	"github.com/husio/lith/pkg/eventbus"
 	"github.com/husio/lith/pkg/taskqueue"
 	"github.com/husio/lith/pkg/totp"
 	"github.com/husio/lith/pkg/translation"
@@ -25,6 +26,7 @@ func APIHandler(
 	conf APIConfiguration,
 	store Store,
 	cache cache.Store,
+	events eventbus.Sink,
 	queue taskqueue.Scheduler,
 ) http.Handler {
 	rt := web.NewRouter()
@@ -39,7 +41,7 @@ func APIHandler(
 	rt.Add(`POST   `+p+`twofactor`, apiTwoFactorEnable{store: store, conf: conf, cache: cache})
 	if conf.AllowRegisterAccount {
 		rt.Add(`POST   `+p+`accounts`, apiAccountCreateInit{store: store, conf: conf, queue: queue})
-		rt.Add(`PUT    `+p+`accounts`, apiAccountCreateComplete{store: store, conf: conf, queue: queue})
+		rt.Add(`PUT    `+p+`accounts`, apiAccountCreateComplete{store: store, conf: conf, events: events})
 	}
 	if conf.AllowPasswordReset {
 		rt.Add(`POST   `+p+`passwordreset`, apiPasswordResetInit{store: store, conf: conf, queue: queue})
@@ -345,9 +347,9 @@ func (h apiAccountCreateInit) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 }
 
 type apiAccountCreateComplete struct {
-	store Store
-	conf  APIConfiguration
-	queue taskqueue.Scheduler
+	store  Store
+	conf   APIConfiguration
+	events eventbus.Sink
 }
 
 func (h apiAccountCreateComplete) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -426,16 +428,21 @@ func (h apiAccountCreateComplete) ServeHTTP(w http.ResponseWriter, r *http.Reque
 			"account_id", account.AccountID)
 	}
 
-	taskID, err := h.queue.Schedule(ctx, AccountRegisteredEvent{
-		EventID: generateID(),
-		Account: *account,
-	}, taskqueue.Delay(2*time.Second)) // Delay so that it can be cancelled if needed.
-
 	if err := session.Commit(); err != nil {
-		_ = h.queue.Cancel(ctx, taskID)
 		alert.EmitErr(ctx, err, "Cannot commit session.")
 		web.WriteJSONStdErr(w, http.StatusInternalServerError)
 		return
+	}
+
+	event := AccountRegisteredEvent{
+		AccountID: account.AccountID,
+		Email:     account.Email,
+	}
+	if err := h.events.PublishEvent(ctx, generateID(), account.CreatedAt, event); err != nil {
+		alert.EmitErr(ctx, err,
+			"Cannot emit event.",
+			"account", account.AccountID,
+			"event", "AccountRegisteredEvent")
 	}
 
 	web.WriteJSON(w, http.StatusCreated, struct {

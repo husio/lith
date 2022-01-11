@@ -37,6 +37,28 @@ table.fullwidth  td, table.fullwidth th, table.fullwidth tr { text-align: left; 
   </tbody>
 </table>
 
+<h2>Processing</h2>
+{{if .Acquired}}
+  <table class="fullwidth">
+    <thead>
+      <tr>
+        <th>Task ID</th>
+        <th>Processing Since</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Acquired}}
+        <tr>
+          <td>{{.TaskID}}</td>
+          <td>{{.Since}}</td>
+        </tr>
+      {{end}}
+    </tbody>
+  </table>
+{{else}}
+  <div>No task is being processed right now.</div>
+{{end}}
+
 <h2>Next to process</h2>
 {{if .Waiting}}
   <table class="fullwidth">

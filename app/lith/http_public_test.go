@@ -15,6 +15,7 @@ import (
 
 	"github.com/husio/lith/pkg/alert"
 	"github.com/husio/lith/pkg/cache"
+	"github.com/husio/lith/pkg/eventbus"
 	"github.com/husio/lith/pkg/secret"
 	"github.com/husio/lith/pkg/taskqueue"
 	"github.com/husio/lith/pkg/totp"
@@ -120,7 +121,7 @@ func TestPublicEnableTwoFactorAuth(t *testing.T) {
 			})
 			cache := cache.NewLocalMemCache(1e6)
 			safe := secret.AESSafe("t0p-secret")
-			app := PublicHandler(conf, store, cache, safe, secret.Generate(16), nil)
+			app := PublicHandler(conf, store, cache, safe, secret.Generate(16), eventbus.NewNoopSink(), nil)
 
 			r := httptest.NewRequest("GET", "/t/twofactor/enable/", nil)
 			r.Header.Set("cookie", "s="+sessionID)
@@ -162,11 +163,12 @@ func TestPublicRegisterAccount(t *testing.T) {
 		MinPasswordLength:                 16,
 	}
 
+	var events eventbus.RecordingSink
 	var tasks taskqueue.RecordingScheduler
 	store := newTestSQLiteStore(t)
 	cache := cache.NewLocalMemCache(1e6)
 	safe := secret.AESSafe("t0p-secret")
-	app := PublicHandler(conf, store, cache, safe, secret.Generate(16), &tasks)
+	app := PublicHandler(conf, store, cache, safe, secret.Generate(16), &events, &tasks)
 
 	r := httptest.NewRequest("GET", "/public/register/", nil)
 	w := httptest.NewRecorder()
@@ -271,17 +273,9 @@ func TestPublicRegisterAccount(t *testing.T) {
 		if !reflect.DeepEqual(a.Permissions, []string{"login"}) {
 			t.Fatalf("unexpected permissions: %q", a.Permissions)
 		}
-
-		// When an account is registered, an event must be emitted.
-		var event AccountRegisteredEvent
-		tasks.LoadRecorded(t, 1, &event)
-		if event.EventID == "" {
-			t.Errorf("event ID not set")
-		}
-		if !reflect.DeepEqual(event.Account, *a) {
-			t.Fatalf("emitted event has invalid payload\n  got: %+v\n want: %+v", event.Account, *a)
-		}
+		events.AssertPublished(t, AccountRegisteredEvent{AccountID: a.AccountID, Email: a.Email})
 	})
+
 }
 
 func TestPublicResetPassword(t *testing.T) {
@@ -350,7 +344,7 @@ func TestPublicLoginNoTwoFactorAuth(t *testing.T) {
 				tc.PrepareStore(t, s)
 			})
 
-			app := PublicHandler(conf, store, nil, nil, secret.Generate(16), nil)
+			app := PublicHandler(conf, store, nil, nil, secret.Generate(16), eventbus.NewNoopSink(), nil)
 
 			csrfToken, csrfCookie := acquireCSRFToken(t, "/t/login/", app)
 
@@ -521,7 +515,7 @@ func TestPublicLoginWithTwoFactorAuth(t *testing.T) {
 				tc.Prepare(t, s, cache)
 			})
 
-			app := PublicHandler(conf, store, cache, safe, secret.Generate(16), nil)
+			app := PublicHandler(conf, store, cache, safe, secret.Generate(16), eventbus.NewNoopSink(), nil)
 
 			csrfToken, csrfCookie := acquireCSRFToken(t, "/t/login/", app)
 
@@ -585,7 +579,7 @@ func TestPublicLoginWithTwoFactorAuthRequired(t *testing.T) {
 		PathPrefix:           "/2fa-required/",
 		SessionMaxAge:        time.Hour,
 		RequireTwoFactorAuth: true,
-	}, store, cache, safe, secret.Generate(16), nil)
+	}, store, cache, safe, secret.Generate(16), eventbus.NewNoopSink(), nil)
 
 	csrfToken, csrfCookie := acquireCSRFToken(t, "/2fa-required/login/", app)
 

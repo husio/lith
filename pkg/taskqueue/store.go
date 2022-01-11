@@ -337,14 +337,21 @@ func (s *Store) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		CreatedAt time.Time
 	}
 
+	type processing struct {
+		TaskID string
+		Since  time.Duration
+	}
+
 	var info struct {
 		WaitingCount   uint
 		AcquiredCount  uint
 		DeadqueueCount uint
 		FailuresCount  uint
 		Waiting        []waitingtask
+		Acquired       []processing
 		Failures       []failure
 	}
+
 	if err := tx.QueryRow(`
 		SELECT
 		(SELECT COUNT(*) FROM tasks) AS tasks,
@@ -406,6 +413,29 @@ func (s *Store) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := tasks.Err(); err != nil {
 		http.Error(w, "Waiting tasks rows.", http.StatusInternalServerError)
+		return
+	}
+
+	acquired, err := tx.QueryContext(ctx, `SELECT task_id, created_at FROM acquired ORDER BY created_at DESC LIMIT 50`)
+	if err != nil {
+		http.Error(w, "Query acquired tasks.", http.StatusInternalServerError)
+		return
+	}
+	defer acquired.Close()
+
+	now := time.Now()
+	for acquired.Next() {
+		var p processing
+		var createdAt int64
+		if err := acquired.Scan(&p.TaskID, &createdAt); err != nil {
+			http.Error(w, "Scan acquired task ID.", http.StatusInternalServerError)
+			return
+		}
+		p.Since = now.Sub(time.Unix(createdAt, 0))
+		info.Acquired = append(info.Acquired, p)
+	}
+	if err := acquired.Err(); err != nil {
+		http.Error(w, "Acquired tasks rows.", http.StatusInternalServerError)
 		return
 	}
 
