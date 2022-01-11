@@ -377,7 +377,11 @@ func TestPublicLoginNoTwoFactorAuth(t *testing.T) {
 }
 
 func TestPublicLoginWithTwoFactorAuth(t *testing.T) {
-	now := time.Now()
+	now, err := time.Parse("2006-01-02 15:04:05 ", "2020-01-01 14:01:03")
+	if err != nil {
+		t.Fatalf("parse time: %s", err)
+	}
+
 	withCurrentTime(t, now)
 	totp.WithCurrentTime(t, now)
 
