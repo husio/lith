@@ -26,7 +26,7 @@ func OpenSQLiteStore(dbpath string, safe secret.Safe) (Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
-	db.SetMaxOpenConns(1) // Because SQLite.
+	// db.SetMaxOpenConns(1) // Because SQLite.
 
 	if err := migrate(db); err != nil {
 		return nil, fmt.Errorf("migration: %w", err)
@@ -453,6 +453,7 @@ func (s *sqliteStoreSession) ListAccounts(ctx context.Context, filter string, li
 		return nil, fmt.Errorf("select: %w", castSQLiteErr(err))
 	}
 	defer rows.Close()
+
 	var accounts []*Account
 	for rows.Next() {
 		var a Account
@@ -603,6 +604,7 @@ func (s *sqliteStoreSession) PermissionGroupsByAccount(ctx context.Context, acco
 	if err != nil {
 		return nil, fmt.Errorf("select: %w", castSQLiteErr(err))
 	}
+	defer rows.Close()
 
 	var groups []*PermissionGroup
 	for rows.Next() {

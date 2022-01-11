@@ -129,10 +129,11 @@ func main() {
 
 // A list of all registered commands available by this program.
 var commands = map[string]func(context.Context, lith.Configuration, []string) error{
-	"print-config": cmdPrintConfig,
-	"serve":        cmdServe,
-	"useradd":      cmdUserAdd,
-	"vacuum":       cmdVacuum,
+	"print-config":  cmdPrintConfig,
+	"serve":         cmdServe,
+	"taskqueueinfo": cmdTaskQueueInfo,
+	"useradd":       cmdUserAdd,
+	"vacuum":        cmdVacuum,
 }
 
 // availableCmds returns a sorted list of all available commands.
@@ -175,7 +176,7 @@ func checkConfiguration(c lith.Configuration) []string {
 	case "":
 		issues = append(issues, "EmailBackend is required.")
 	default:
-		issues = append(issues, "EmailBackend value is not recognized..")
+		issues = append(issues, "EmailBackend value is not recognized.")
 	}
 
 	apps := []struct {
@@ -233,13 +234,25 @@ func checkConfiguration(c lith.Configuration) []string {
 		}
 	}
 
-	if c.Webhook.URL != "" {
-		if _, err := url.Parse(c.Webhook.URL); err != nil {
-			issues = append(issues, fmt.Sprintf("Webhook.URL is invalid: %s", err))
+	switch c.EventSinkBackend {
+	case "none":
+	case "fs":
+		if c.EventSinkFilesystem.Dir == "" {
+			issues = append(issues, `When using "fs" event backend, EventSinkFilesystem.Dir is required.`)
 		}
-		if c.Webhook.Secret == "" {
-			issues = append(issues, "Webhook.Secret is required.")
+	case "webhook":
+		if c.EventSinkWebhook.URL == "" {
+			issues = append(issues, `When using "webhook" event sink EventSinkWebhook.URL is required.`)
+		} else if _, err := url.Parse(c.EventSinkWebhook.URL); err != nil {
+			issues = append(issues, fmt.Sprintf("EventSinkWebhook.URL is invalid: %s", err))
 		}
+		if c.EventSinkWebhook.Secret == "" {
+			issues = append(issues, `When using "webhook" event sink EventSinkWebhook.Secret is required.`)
+		}
+	case "":
+		issues = append(issues, `EventSinkBackend is required and must be "none", "fs" or "webhook".`)
+	default:
+		issues = append(issues, "EventSinkBackend value is not recognized.")
 	}
 
 	return issues

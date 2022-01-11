@@ -9,19 +9,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/husio/lith/pkg/secret"
 )
 
-type Notifier interface {
-	Notify(ctx context.Context, id string, data interface{}) error
+type EventSink interface {
+	PublishEvent(ctx context.Context, id string, data interface{}) error
 }
 
-type NoopNotifier struct{}
+type NoopEventSink struct{}
 
-func (NoopNotifier) Notify(context.Context, string, interface{}) error { return nil }
+func (NoopEventSink) PublishEvent(context.Context, string, interface{}) error { return nil }
 
 func NewHTTPWebhook(url string, secret secret.Value, client *http.Client) *HTTPWebhook {
 	if client == nil {
@@ -42,7 +45,7 @@ type HTTPWebhook struct {
 	cli    *http.Client
 }
 
-func (w *HTTPWebhook) Notify(ctx context.Context, id string, data interface{}) error {
+func (w *HTTPWebhook) PublishEvent(ctx context.Context, id string, data interface{}) error {
 	now := w.now()
 	raw, err := json.Marshal(struct {
 		ID      string      `json:"id"`
@@ -79,6 +82,38 @@ func (w *HTTPWebhook) Notify(ctx context.Context, id string, data interface{}) e
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		b, _ := io.ReadAll(io.LimitReader(r.Body, 1e5))
 		return fmt.Errorf("unexpected status code: %d %s", resp.StatusCode, b)
+	}
+	return nil
+}
+
+func NewFsEventSink(dir string) EventSink {
+	_ = os.MkdirAll(dir, 0770)
+	return fsEventSink{dir: dir, now: time.Now}
+}
+
+type fsEventSink struct {
+	dir string
+	now func() time.Time
+}
+
+func (es fsEventSink) PublishEvent(ctx context.Context, id string, data interface{}) error {
+	now := es.now()
+	raw, err := json.Marshal(struct {
+		ID      string      `json:"id"`
+		Payload interface{} `json:"payload"`
+		Now     time.Time   `json:"now"`
+	}{
+		ID:      id,
+		Payload: data,
+		Now:     now,
+	})
+	if err != nil {
+		return fmt.Errorf("json serialize data: %w", err)
+	}
+
+	filename := filepath.Join(es.dir, fmt.Sprintf("%d_%s.txt", now.Unix(), id))
+	if err := ioutil.WriteFile(filename, raw, 0666); err != nil {
+		return fmt.Errorf("write to file: %w", err)
 	}
 	return nil
 }

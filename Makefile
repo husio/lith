@@ -28,7 +28,9 @@ run-lith:
 	reflex -s -- sh -c 'go run github.com/husio/lith/cmd/lith -conf examples/lith.conf serve'
 
 run-monitor-queue:
-	watch 'sh ./bin/taskqueue_status.sh'
+	@echo
+	@echo "Running Task Queue Info server on http://localhost:8085"
+	@go run github.com/husio/lith/cmd/lith -conf examples/lith.conf taskqueueinfo
 
 run-test-mailserver:
 	@echo

@@ -14,7 +14,12 @@ CREATE INDEX IF NOT EXISTS tasks_execute_at_idx ON tasks(execute_at);
 
 ---
 
-CREATE TEMPORARY TABLE acquired (
+-- Cleanup acquired tasks by recreating the table;
+DROP TABLE IF EXISTS acquired;
+
+---
+
+CREATE TABLE acquired (
 	task_id TEXT UNIQUE,
 	created_at INTEGER NOT NULL
 );
@@ -35,3 +40,8 @@ CREATE TABLE IF NOT EXISTS deadqueue (
 	payload BLOB NOT NULL,
 	created_at INTEGER NOT NULL
 );
+
+---
+
+-- Optimize the space used by the database file.
+VACUUM;

@@ -61,9 +61,14 @@ func runServer(ctx context.Context, conf lith.Configuration) error {
 		return fmt.Errorf("email backend not supported: %s", conf.EmailBackend)
 	}
 
-	var externalEventSink lith.Notifier = lith.NoopNotifier{}
-	if conf.Webhook.URL != "" {
-		externalEventSink = lith.NewHTTPWebhook(conf.Webhook.URL, secret.Value(conf.Webhook.Secret), nil)
+	var eventSink lith.EventSink
+	switch conf.EventSinkBackend {
+	case "noop":
+		eventSink = lith.NoopEventSink{}
+	case "fs":
+		eventSink = lith.NewFsEventSink(conf.EventSinkFilesystem.Dir)
+	case "webhook":
+		eventSink = lith.NewHTTPWebhook(conf.EventSinkWebhook.URL, secret.Value(conf.EventSinkWebhook.Secret), nil)
 	}
 
 	queueStore, err := taskqueue.OpenTaskQueue(conf.TaskQueueDatabase)
@@ -74,7 +79,7 @@ func runServer(ctx context.Context, conf lith.Configuration) error {
 	bgJobQueue := taskqueue.NewRegistry(queueStore)
 	bgJobQueue.MustRegister(lith.SendConfirmRegistration{}, lith.NewSendConfirmRegistrationHandler(emailserver))
 	bgJobQueue.MustRegister(lith.SendResetPassword{}, lith.NewSendResetPasswordHandler(emailserver))
-	bgJobQueue.MustRegister(lith.AccountRegisteredEvent{}, lith.NewAccountRegisteredEventHandler(externalEventSink))
+	bgJobQueue.MustRegister(lith.AccountRegisteredEvent{}, lith.NewAccountRegisteredEventHandler(eventSink))
 
 	// go http.ListenAndServe(":12345", queueStore)
 

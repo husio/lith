@@ -8,8 +8,13 @@ type Configuration struct {
 	Secret               string
 	StoreVacuumFrequency time.Duration
 
-	// An optional webhook configuration.
-	Webhook WebhookConfiguration
+	// Event recipient configuraiton.
+	//
+	// EventSinkBackend specifies which backend to use to broadcast events.
+	// Choices are: none, fs, webhook
+	EventSinkBackend    string
+	EventSinkWebhook    EventSinkWebhookConfiguration
+	EventSinkFilesystem EventSinkFilesystemConfiguration
 
 	// Email configuraiton.
 	//
@@ -29,7 +34,7 @@ type Configuration struct {
 	API        APIConfiguration
 }
 
-type WebhookConfiguration struct {
+type EventSinkWebhookConfiguration struct {
 	// URL is the address of the recipient. If not set, webhook
 	// functionality is disabled.
 	URL string
@@ -37,6 +42,11 @@ type WebhookConfiguration struct {
 	// Secret is shared between client and server, used to sign the
 	// request.
 	Secret string
+}
+
+type EventSinkFilesystemConfiguration struct {
+	// Dir specifies a directory where all events will be written.
+	Dir string
 }
 
 type SMTPConfiguration struct {

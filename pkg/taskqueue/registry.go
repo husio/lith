@@ -77,28 +77,34 @@ func Timeout(cancelExecutionAfter time.Duration) ScheduleOption {
 // handlers.
 func NewRegistry(queue *Store) *Registry {
 	return &Registry{
-		queue: queue,
-		infos: make(map[string]taskinfo),
+		queue:     queue,
+		tasksMeta: make(map[string]taskmeta),
 	}
 }
 
 // Registry binds together task payloads and handlers.
 type Registry struct {
-	infos map[string]taskinfo
-	queue *Store
+	tasksMeta map[string]taskmeta
+	queue     *Store
 }
 
-type taskinfo struct {
+// taskmeta clubs together a task handler with a data structure that should be
+// used to unpack the task payload.
+type taskmeta struct {
 	payload reflect.Type
 	handler Handler
 }
 
-func (ti taskinfo) newPayload() Payload {
+// newPayload returns a new, uninitialized data structure that should be used
+// to unpack task payload.
+func (ti taskmeta) newPayload() Payload {
 	return reflect.New(ti.payload).Interface().(Payload)
 }
 
+// Register a task handler. First argument must be a data structure that
+// represents the payload.
 func (r *Registry) Register(p Payload, h Handler) error {
-	if _, ok := r.infos[p.TaskName()]; ok {
+	if _, ok := r.tasksMeta[p.TaskName()]; ok {
 		return fmt.Errorf("spec for %q already registerd", p.TaskName())
 	}
 
@@ -107,23 +113,31 @@ func (r *Registry) Register(p Payload, h Handler) error {
 		tp = tp.Elem()
 	}
 
-	r.infos[p.TaskName()] = taskinfo{
+	r.tasksMeta[p.TaskName()] = taskmeta{
 		handler: h,
 		payload: tp,
 	}
 	return nil
 }
 
+// MustRegister is a Register call that will panic on failure.
 func (r *Registry) MustRegister(p Payload, h Handler) {
 	if err := r.Register(p, h); err != nil {
 		panic(err)
 	}
 }
 
+// Cancel is a best effort to remove a scheduled, but not yet executed task
+// from the queue.
 func (r *Registry) Cancel(ctx context.Context, taskID string) error {
 	return r.queue.Delete(ctx, taskID)
 }
 
+// Schedule is publishing one or more tasks to be processed. Using various
+// schedule options, it is possible to tune how tasks are published.
+//
+// This operation is atomic for all provided tasks - either or or none is
+// published.
 func (r *Registry) Schedule(ctx context.Context, s Payload, opts ...ScheduleOption) (string, error) {
 	payload, err := json.Marshal(s)
 	if err != nil {
@@ -148,7 +162,16 @@ func (r *Registry) Schedule(ctx context.Context, s Payload, opts ...ScheduleOpti
 	return ids[0], nil
 }
 
+// ProcessIncoming is a blocking function that is monitoring task queue and
+// processing jobs. This function returns only on a worker error or when
+// provided context is cancelled.
+//
+// When multiple worker fails, only the first error is returned.
 func (r *Registry) ProcessIncoming(ctx context.Context, workers uint) error {
+	if workers < 1 {
+		return errors.New("at least one worker is required")
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -175,10 +198,8 @@ func (r *Registry) ProcessIncoming(ctx context.Context, workers uint) error {
 }
 
 func (r *Registry) processIncomingWorker(ctx context.Context) error {
-pullQueue:
 	for {
-		err := r.ProcessOne(ctx)
-		switch {
+		switch err := r.ProcessOne(ctx); {
 		case err == nil:
 			// All good.
 		case errors.Is(err, ErrEmpty):
@@ -186,7 +207,6 @@ pullQueue:
 			case <-ctx.Done():
 				return ctx.Err()
 			case <-time.After(time.Second):
-				goto pullQueue
 			}
 		default:
 			return err
@@ -194,13 +214,14 @@ pullQueue:
 	}
 }
 
+// ProcessOne pops the first task from the task queue and process it.
 func (r *Registry) ProcessOne(ctx context.Context) error {
 	task, err := r.queue.Pull(ctx)
 	if err != nil {
 		return fmt.Errorf("pull: %w", err)
 	}
 
-	info, ok := r.infos[task.Name]
+	taskMeta, ok := r.tasksMeta[task.Name]
 	if !ok {
 		alert.Emit(ctx,
 			"msg", "Cannot process message because task spec is not registered.",
@@ -211,7 +232,7 @@ func (r *Registry) ProcessOne(ctx context.Context) error {
 		}
 	}
 
-	payload := info.newPayload()
+	payload := taskMeta.newPayload()
 	if err := json.Unmarshal(task.Payload, &payload); err != nil {
 		return fmt.Errorf("unmarshal %q task: %w", task.Name, err)
 	}
@@ -224,7 +245,7 @@ func (r *Registry) ProcessOne(ctx context.Context) error {
 				taskErr = fmt.Errorf("panic: %v", err)
 			}
 		}()
-		taskErr = info.handler.HandleTask(taskCtx, r, payload)
+		taskErr = taskMeta.handler.HandleTask(taskCtx, r, payload)
 	}()
 	cancel()
 

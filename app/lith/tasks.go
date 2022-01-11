@@ -78,12 +78,12 @@ func (AccountRegisteredEvent) TaskName() string {
 	return "account-registered-event"
 }
 
-func NewAccountRegisteredEventHandler(n Notifier) taskqueue.Handler {
-	return accountRegisteredEventHandler{notifier: n}
+func NewAccountRegisteredEventHandler(sink EventSink) taskqueue.Handler {
+	return accountRegisteredEventHandler{sink: sink}
 }
 
 type accountRegisteredEventHandler struct {
-	notifier Notifier
+	sink EventSink
 }
 
 func (h accountRegisteredEventHandler) HandleTask(ctx context.Context, sn taskqueue.Scheduler, p taskqueue.Payload) error {
@@ -102,7 +102,7 @@ func (h accountRegisteredEventHandler) HandleTask(ctx context.Context, sn taskqu
 		CreatedAt:   t.Account.CreatedAt,
 	}
 
-	if err := h.notifier.Notify(ctx, t.EventID, data); err != nil {
+	if err := h.sink.PublishEvent(ctx, t.EventID, data); err != nil {
 		return fmt.Errorf("notify: %w", err)
 	}
 	return nil

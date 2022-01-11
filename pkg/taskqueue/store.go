@@ -19,16 +19,22 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+// OpenTaskQueue returns a task queue store implementation.
 func OpenTaskQueue(dbpath string) (*Store, error) {
 	db, err := sql.Open("sqlite3", dbpath)
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
+
 	db.SetMaxOpenConns(1) // Because SQLite.
+	db.SetMaxIdleConns(1)
+	db.SetConnMaxIdleTime(time.Second)
+	db.SetConnMaxLifetime(time.Second * 3)
 
 	if err := migrate(db); err != nil {
 		return nil, fmt.Errorf("migration: %w", err)
 	}
+
 	return &Store{db: db}, nil
 }
 
@@ -48,11 +54,17 @@ type Store struct {
 	db *sql.DB
 }
 
+// Close the store and free all resources.
 func (s *Store) Close() error {
 	return s.db.Close()
 }
 
+// Push one or more tasks to the queue. This is an atomic operation.
 func (s *Store) Push(ctx context.Context, tasks []Pushed) ([]string, error) {
+	if len(tasks) == 0 {
+		return nil, nil
+	}
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("start transaction: %w", err)
@@ -154,9 +166,7 @@ func (s *Store) Pull(ctx context.Context) (*Pulled, error) {
 		ORDER BY execute_at ASC
 		LIMIT 1
 	`, now.Unix())
-	if err := row.Err(); err != nil {
-		return nil, fmt.Errorf("select task: %w", err)
-	}
+
 	var task Pulled
 	var timeout int64
 	if err := row.Scan(&task.TaskID, &task.Name, &task.Payload, &timeout); err != nil {
@@ -304,7 +314,7 @@ func (s *Store) stats() (tasks, acquired, failures, deadqueue uint) {
 
 func (s *Store) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		http.Error(w, "Cannot start transaction.", http.StatusInternalServerError)
 		return
@@ -346,30 +356,31 @@ func (s *Store) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := tx.QueryContext(ctx, `
+	failures, err := tx.QueryContext(ctx, `
 		SELECT task_id, created_at, description FROM failures ORDER BY created_at DESC LIMIT 20
 	`)
 	if err != nil {
 		http.Error(w, "Cannot query failed tasks.", http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
-	for rows.Next() {
+	defer failures.Close()
+
+	for failures.Next() {
 		var f failure
 		var createdAt int64
-		if err := rows.Scan(&f.TaskID, &createdAt, &f.Description); err != nil {
+		if err := failures.Scan(&f.TaskID, &createdAt, &f.Description); err != nil {
 			http.Error(w, "Cannot scan failed task.", http.StatusInternalServerError)
 			return
 		}
 		f.CreatedAt = time.Unix(createdAt, 0)
 		info.Failures = append(info.Failures, f)
 	}
-	if err := rows.Err(); err != nil {
+	if err := failures.Err(); err != nil {
 		http.Error(w, "Cannot finish failure scanning.", http.StatusInternalServerError)
 		return
 	}
 
-	rows, err = tx.QueryContext(ctx, `
+	tasks, err := tx.QueryContext(ctx, `
 		SELECT task_id, name, payload, retry, timeout, execute_at, created_at
 		FROM tasks
 		ORDER BY execute_at DESC
@@ -379,12 +390,12 @@ func (s *Store) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Query waiting tasks.", http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
+	defer tasks.Close()
 
-	for rows.Next() {
+	for tasks.Next() {
 		var t waitingtask
 		var timeout, executeAt, createdAt int64
-		if err := rows.Scan(&t.TaskID, &t.Name, &t.Payload, &t.Retry, &timeout, &executeAt, &createdAt); err != nil {
+		if err := tasks.Scan(&t.TaskID, &t.Name, &t.Payload, &t.Retry, &timeout, &executeAt, &createdAt); err != nil {
 			http.Error(w, "Scan waiting task.", http.StatusInternalServerError)
 			return
 		}
@@ -393,7 +404,7 @@ func (s *Store) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		t.CreatedAt = time.Unix(createdAt, 0)
 		info.Waiting = append(info.Waiting, t)
 	}
-	if err := rows.Err(); err != nil {
+	if err := tasks.Err(); err != nil {
 		http.Error(w, "Waiting tasks rows.", http.StatusInternalServerError)
 		return
 	}
