@@ -140,7 +140,7 @@ type fsSink struct {
 }
 
 func (es fsSink) PublishEvent(ctx context.Context, e Event) error {
-	raw, err := json.Marshal(struct {
+	raw, err := json.MarshalIndent(struct {
 		Kind      string      `json:"kind"`
 		ID        string      `json:"id"`
 		Data      interface{} `json:"data"`
@@ -150,7 +150,7 @@ func (es fsSink) PublishEvent(ctx context.Context, e Event) error {
 		ID:        e.ID,
 		Data:      e.Data,
 		CreatedAt: e.CreatedAt,
-	})
+	}, "", "\t")
 	if err != nil {
 		return fmt.Errorf("json serialize data: %w", err)
 	}
