@@ -3,7 +3,6 @@ package eventbus
 import (
 	"context"
 	"errors"
-	"reflect"
 	"testing"
 	"time"
 
@@ -33,25 +32,32 @@ func TestThroughTaskQueue(t *testing.T) {
 		Name  string
 		Admin bool
 	}
-	if err := taskSink.PublishEvent(ctx, "00001", now, UserCreated{Name: "bob", Admin: true}); err != nil {
+	if err := taskSink.PublishEvent(ctx, Event{
+		Kind:      "user-created",
+		ID:        "00001",
+		CreatedAt: now,
+		Data:      UserCreated{Name: "bob", Admin: true},
+	}); err != nil {
 		t.Fatalf("publish event: %s", err)
 	}
 
 	// No event should be published with recording sink before we process a
 	// task.
-	if len(recSink.IDs) != 0 {
-		t.Fatalf("an event was published: %+v", recSink.IDs)
+	if len(recSink.Events) != 0 {
+		t.Fatalf("an event was published: %+v", recSink.Events)
 	}
 
 	if err := reg.ProcessOne(ctx); err != nil {
 		t.Fatalf("process one task: %s", err)
 	}
 
+	if len(recSink.Events) != 1 {
+		t.Fatalf("want an single event published, found %d", len(recSink.Events))
+	}
 	// Now that the only event was processed, an event must have been
 	// published.
-	want := []string{"00001"}
-	if !reflect.DeepEqual(recSink.IDs, want) {
-		t.Fatalf("want %q event IDs, got %q", want, recSink.IDs)
+	if want, got := "00001", recSink.Events[0].ID; want != got {
+		t.Fatalf("want %q event IDs, got %q", want, got)
 	}
 
 	if err := reg.ProcessOne(ctx); !errors.Is(err, taskqueue.ErrEmpty) {

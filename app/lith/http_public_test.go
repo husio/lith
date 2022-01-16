@@ -273,7 +273,7 @@ func TestPublicRegisterAccount(t *testing.T) {
 		if !reflect.DeepEqual(a.Permissions, []string{"login"}) {
 			t.Fatalf("unexpected permissions: %q", a.Permissions)
 		}
-		events.AssertPublished(t, AccountRegisteredEvent{AccountID: a.AccountID, Email: a.Email})
+		events.AssertPublished(t, AccountRegisteredEvent(a.AccountID, a.Email, a.CreatedAt))
 	})
 
 }

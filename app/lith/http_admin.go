@@ -833,11 +833,8 @@ func (h adminAccountCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event := AccountRegisteredEvent{
-		AccountID: account.AccountID,
-		Email:     account.Email,
-	}
-	if err := h.events.PublishEvent(ctx, generateID(), account.CreatedAt, event); err != nil {
+	event := AccountRegisteredEvent(account.AccountID, account.Email, account.CreatedAt)
+	if err := h.events.PublishEvent(ctx, event); err != nil {
 		alert.EmitErr(ctx, err,
 			"Cannot emit event.",
 			"account", account.AccountID,

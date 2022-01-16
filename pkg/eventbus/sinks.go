@@ -30,7 +30,24 @@ type Sink interface {
 	// Each event should be published with a unique identifier. Since the
 	// delivery is at least once, ID allows for deduplication by the
 	// client.
-	PublishEvent(ctx context.Context, id string, createdAt time.Time, data interface{}) error
+	PublishEvent(context.Context, Event) error
+}
+
+type Event struct {
+	// Kind describes the type of the event.
+	Kind string `json:"kind"`
+
+	// ID of this event instance, used to deduplicate events.
+	ID string `json:"id"`
+
+	// CreatedAt represents the time that the event was created.
+	CreatedAt time.Time `json:"created_at"`
+
+	// Data will loose type information when deserializing JSON. If
+	// initially a structure was given, JSON will unmarshall it to
+	// map[string]interface{}. This is ok as long as the event published
+	// does not see a difference between those two.
+	Data interface{} `json:"data"`
 }
 
 // NewNoopSink returns a Sink implementation that drops all events.
@@ -40,7 +57,7 @@ func NewNoopSink() Sink {
 
 type noopSink struct{}
 
-func (noopSink) PublishEvent(context.Context, string, time.Time, interface{}) error { return nil }
+func (noopSink) PublishEvent(context.Context, Event) error { return nil }
 
 // NewWebhookSink returns a Sink implementation that is publishing events by
 // making an HTTP POST request to given URL. Payload is JSON serialized.
@@ -49,6 +66,7 @@ func NewWebhookSink(url string, secret []byte, client *http.Client) Sink {
 		client = http.DefaultClient
 	}
 	return &webhook{
+		now:    time.Now,
 		url:    url,
 		secret: secret,
 		cli:    client,
@@ -56,20 +74,26 @@ func NewWebhookSink(url string, secret []byte, client *http.Client) Sink {
 }
 
 type webhook struct {
+	now    func() time.Time
 	url    string
 	secret []byte
 	cli    *http.Client
 }
 
-func (w *webhook) PublishEvent(ctx context.Context, id string, createdAt time.Time, data interface{}) error {
+func (w *webhook) PublishEvent(ctx context.Context, e Event) error {
+	now := w.now().UTC().Truncate(time.Second)
 	raw, err := json.Marshal(struct {
+		Kind      string      `json:"kind"`
 		ID        string      `json:"id"`
 		Payload   interface{} `json:"payload"`
 		CreatedAt time.Time   `json:"created_at"`
+		Now       time.Time   `json:"now"`
 	}{
-		ID:        id,
-		Payload:   data,
-		CreatedAt: createdAt,
+		Kind:      e.Kind,
+		ID:        e.ID,
+		Payload:   e.Data,
+		CreatedAt: e.CreatedAt,
+		Now:       now,
 	})
 	if err != nil {
 		return fmt.Errorf("json serialize data: %w", err)
@@ -80,7 +104,6 @@ func (w *webhook) PublishEvent(ctx context.Context, id string, createdAt time.Ti
 		return fmt.Errorf("new request: %w", err)
 	}
 	r.Header.Set("content-type", "application/json")
-	r.Header.Set("created-at", createdAt.Format(time.RFC3339))
 
 	mac := hmac.New(sha256.New, w.secret)
 	if _, err := mac.Write(raw); err != nil {
@@ -116,21 +139,23 @@ type fsSink struct {
 	dir string
 }
 
-func (es fsSink) PublishEvent(ctx context.Context, id string, createdAt time.Time, data interface{}) error {
+func (es fsSink) PublishEvent(ctx context.Context, e Event) error {
 	raw, err := json.Marshal(struct {
+		Kind      string      `json:"kind"`
 		ID        string      `json:"id"`
-		Payload   interface{} `json:"payload"`
+		Data      interface{} `json:"data"`
 		CreatedAt time.Time   `json:"created_at"`
 	}{
-		ID:        id,
-		Payload:   data,
-		CreatedAt: createdAt,
+		Kind:      e.Kind,
+		ID:        e.ID,
+		Data:      e.Data,
+		CreatedAt: e.CreatedAt,
 	})
 	if err != nil {
 		return fmt.Errorf("json serialize data: %w", err)
 	}
 
-	filename := filepath.Join(es.dir, fmt.Sprintf("%d_%s.txt", createdAt.Unix(), id))
+	filename := filepath.Join(es.dir, fmt.Sprintf("%d_%s_%s.txt", e.CreatedAt.Unix(), e.Kind, e.ID))
 	if err := ioutil.WriteFile(filename, raw, 0666); err != nil {
 		return fmt.Errorf("write to file: %w", err)
 	}
@@ -153,14 +178,7 @@ func ThroughTaskQueue(sink Sink, queue *taskqueue.Registry) Sink {
 }
 
 type eventTask struct {
-	EventID   string
-	CreatedAt time.Time
-
-	// Data will loose type information when deserializing JSON. If
-	// initially a structure was given, JSON will unmarshall it to
-	// map[string]interface{}. This is ok as long as the event published
-	// does not see a difference between those two.
-	Data interface{}
+	Event Event
 }
 
 func (eventTask) TaskName() string {
@@ -172,12 +190,8 @@ type taskqueueSink struct {
 	s   taskqueue.Scheduler
 }
 
-func (sink taskqueueSink) PublishEvent(ctx context.Context, id string, created time.Time, data interface{}) error {
-	_, err := sink.s.Schedule(ctx, eventTask{
-		EventID:   id,
-		Data:      data,
-		CreatedAt: created,
-	}, taskqueue.Timeout(time.Minute))
+func (sink taskqueueSink) PublishEvent(ctx context.Context, e Event) error {
+	_, err := sink.s.Schedule(ctx, eventTask{Event: e}, taskqueue.Timeout(time.Minute))
 	return err
 }
 
@@ -191,31 +205,37 @@ func (h sinkHandler) HandleTask(ctx context.Context, s taskqueue.Scheduler, p ta
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	if err := h.sink.PublishEvent(ctx, task.EventID, task.CreatedAt, task.Data); err != nil {
-		return fmt.Errorf("publish event %s: %w", task.EventID, err)
+	if err := h.sink.PublishEvent(ctx, task.Event); err != nil {
+		return fmt.Errorf("publish event %s: %w", task.Event.ID, err)
 	}
 	return nil
 }
 
 // RecordingSink drops all published events, storing locally their data and ID. Use for testing.
 type RecordingSink struct {
-	IDs  []string
-	Data []interface{}
+	Events []Event
 }
 
-func (s *RecordingSink) PublishEvent(ctx context.Context, id string, _ time.Time, data interface{}) error {
-	s.IDs = append(s.IDs, id)
-	s.Data = append(s.Data, data)
+func (s *RecordingSink) PublishEvent(ctx context.Context, e Event) error {
+	s.Events = append(s.Events, e)
 	return nil
 }
 
-func (s *RecordingSink) AssertPublished(t testing.TB, data ...interface{}) {
+func (s *RecordingSink) AssertPublished(t testing.TB, events ...Event) {
 	t.Helper()
-	if len(data) != len(s.Data) {
-		t.Fatalf("want %d events published, got %d: %s", len(data), len(s.Data), s.IDs)
+
+	if len(events) != len(s.Events) {
+		t.Fatalf("want %d events published, got %d", len(events), len(s.Events))
 	}
 
-	if !reflect.DeepEqual(data, s.Data) {
-		t.Fatalf("unexpected events published\nwant: %+v\n got: %+v", data, s.Data)
+	for i := range events {
+		got := s.Events[i]
+		want := events[i]
+		if got.Kind != want.Kind {
+			t.Errorf("event %d, want kind %q, got %q", i, want.Kind, got.Kind)
+		}
+		if !reflect.DeepEqual(got.Data, want.Data) {
+			t.Errorf("event %d, want data %+v, got %+v", i, want.Data, got.Data)
+		}
 	}
 }

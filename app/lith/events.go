@@ -1,7 +1,23 @@
 package lith
 
-// AccountRegisteredEvent is emitted when a new account is created.
-type AccountRegisteredEvent struct {
-	AccountID string `json:"account_id"`
-	Email     string `json:"email"`
+import (
+	"time"
+
+	"github.com/husio/lith/pkg/eventbus"
+)
+
+// AccountRegisteredEvent returns an event that represents an account registration.
+func AccountRegisteredEvent(accountID, email string, createdAt time.Time) eventbus.Event {
+	return eventbus.Event{
+		Kind:      "account-registered",
+		ID:        generateID(),
+		CreatedAt: createdAt,
+		Data: struct {
+			AccountID string `json:"account_id"`
+			Email     string `json:"email"`
+		}{
+			AccountID: accountID,
+			Email:     email,
+		},
+	}
 }

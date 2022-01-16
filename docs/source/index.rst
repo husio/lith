@@ -23,3 +23,4 @@ Features
 
    api
    examples
+   events

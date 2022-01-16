@@ -415,7 +415,7 @@ func TestAPICreateAccount(t *testing.T) {
 		if err != nil {
 			t.Fatal("created account cannot be found")
 		}
-		events.AssertPublished(t, AccountRegisteredEvent{AccountID: a.AccountID, Email: a.Email})
+		events.AssertPublished(t, AccountRegisteredEvent(a.AccountID, a.Email, a.CreatedAt))
 	})
 
 }
