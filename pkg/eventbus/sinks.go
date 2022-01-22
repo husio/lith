@@ -91,7 +91,7 @@ func (w *webhook) PublishEvent(ctx context.Context, e Event) error {
 	}{
 		Kind:      e.Kind,
 		ID:        e.ID,
-		Payload:   e.Data,
+		Payload:   e.Payload,
 		CreatedAt: e.CreatedAt,
 		Now:       now,
 	})
@@ -143,12 +143,12 @@ func (es fsSink) PublishEvent(ctx context.Context, e Event) error {
 	raw, err := json.MarshalIndent(struct {
 		Kind      string      `json:"kind"`
 		ID        string      `json:"id"`
-		Data      interface{} `json:"data"`
+		Payload   interface{} `json:"payload"`
 		CreatedAt time.Time   `json:"created_at"`
 	}{
 		Kind:      e.Kind,
 		ID:        e.ID,
-		Data:      e.Data,
+		Payload:   e.Payload,
 		CreatedAt: e.CreatedAt,
 	}, "", "\t")
 	if err != nil {
@@ -234,8 +234,8 @@ func (s *RecordingSink) AssertPublished(t testing.TB, events ...Event) {
 		if got.Kind != want.Kind {
 			t.Errorf("event %d, want kind %q, got %q", i, want.Kind, got.Kind)
 		}
-		if !reflect.DeepEqual(got.Data, want.Data) {
-			t.Errorf("event %d, want data %+v, got %+v", i, want.Data, got.Data)
+		if !reflect.DeepEqual(got.Payload, want.Payload) {
+			t.Errorf("event %d, want data %+v, got %+v", i, want.Payload, got.Payload)
 		}
 	}
 }
