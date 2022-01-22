@@ -49,10 +49,10 @@ func AdminHandler(
 
 	p := conf.PathPrefix
 	admin.Add(`GET      `+p, adminIndex{store: store, conf: conf})
-	admin.Add(`GET,POST `+p+`login/ `, adminLogin{store: store, conf: conf})
-	admin.Add(`GET,POST `+p+`login/verify/`, adminLoginVerify{store: store, cache: cache, conf: conf})
+	admin.Add(`GET,POST `+p+`login/ `, adminLogin{store: store, conf: conf, events: events})
+	admin.Add(`GET,POST `+p+`login/verify/`, adminLoginVerify{store: store, cache: cache, conf: conf, events: events})
 	admin.Add(`GET      `+p+`logout/ `, adminLogout{store: store, conf: conf})
-	admin.Add(`GET,POST `+p+`twofactor/enable/`, adminTwoFactorAuthEnable{store: store, cache: cache, conf: conf, safe: safe})
+	admin.Add(`GET,POST `+p+`twofactor/enable/`, adminTwoFactorAuthEnable{store: store, cache: cache, conf: conf, safe: safe, events: events})
 	admin.Add(`GET      `+p+`accounts/`, adminAccountsList{store: store, conf: conf})
 	admin.Add(`GET,POST `+p+`accounts/create/`, adminAccountCreate{store: store, conf: conf, flash: flash, events: events})
 	admin.Add(`GET,POST `+p+`accounts/{account-id}/`, adminAccountDetails{store: store, conf: conf, flash: flash})
@@ -116,8 +116,9 @@ func (h adminIndex) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type adminLogin struct {
-	store Store
-	conf  AdminPanelConfiguration
+	store  Store
+	events eventbus.Sink
+	conf   AdminPanelConfiguration
 }
 
 func (h adminLogin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -305,6 +306,14 @@ func (h adminLogin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	event := SessionCreatedEvent(account.AccountID, account.CreatedAt)
+	if err := h.events.PublishEvent(ctx, event); err != nil {
+		alert.EmitErr(ctx, err,
+			"Cannot emit event.",
+			"account", account.AccountID,
+			"event", event.Kind)
+	}
+
 	setAdminSessionCookie(w, h.conf, authSessionID)
 
 	if next := r.Form.Get("next"); next != "" {
@@ -315,9 +324,10 @@ func (h adminLogin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type adminLoginVerify struct {
-	store Store
-	cache cache.Store
-	conf  AdminPanelConfiguration
+	store  Store
+	cache  cache.Store
+	events eventbus.Sink
+	conf   AdminPanelConfiguration
 }
 
 func (h adminLoginVerify) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -433,6 +443,14 @@ func (h adminLoginVerify) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	event := SessionCreatedEvent(account.AccountID, account.CreatedAt)
+	if err := h.events.PublishEvent(ctx, event); err != nil {
+		alert.EmitErr(ctx, err,
+			"Cannot emit event.",
+			"account", account.AccountID,
+			"event", event.Kind)
+	}
+
 	setAdminSessionCookie(w, h.conf, authSessionID)
 	if verify2faContext.Next == "" {
 		http.Redirect(w, r, h.conf.PathPrefix, http.StatusSeeOther)
@@ -443,10 +461,11 @@ func (h adminLoginVerify) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type adminTwoFactorAuthEnable struct {
-	store Store
-	cache cache.Store
-	safe  secret.Safe
-	conf  AdminPanelConfiguration
+	store  Store
+	cache  cache.Store
+	safe   secret.Safe
+	events eventbus.Sink
+	conf   AdminPanelConfiguration
 }
 
 func (h adminTwoFactorAuthEnable) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -602,6 +621,15 @@ func (h adminTwoFactorAuthEnable) ServeHTTP(w http.ResponseWriter, r *http.Reque
 				renderAdminErr(w, h.conf, http.StatusInternalServerError, "")
 				return
 			}
+
+			event := SessionCreatedEvent(account.AccountID, account.CreatedAt)
+			if err := h.events.PublishEvent(ctx, event); err != nil {
+				alert.EmitErr(ctx, err,
+					"Cannot emit event.",
+					"account", account.AccountID,
+					"event", event.Kind)
+			}
+
 			if totpEnableContext.Next == "" {
 				http.Redirect(w, r, h.conf.PathPrefix, http.StatusSeeOther)
 			} else {
@@ -838,7 +866,7 @@ func (h adminAccountCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		alert.EmitErr(ctx, err,
 			"Cannot emit event.",
 			"account", account.AccountID,
-			"event", "AccountRegisteredEvent")
+			"event", event.Kind)
 	}
 
 	h.flash.Notify(w, r, FlashMsg{

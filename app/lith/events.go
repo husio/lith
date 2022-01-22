@@ -6,7 +6,8 @@ import (
 	"github.com/husio/lith/pkg/eventbus"
 )
 
-// AccountRegisteredEvent returns an event that represents an account registration.
+// AccountRegisteredEvent returns an event that represents an account
+// registration.
 func AccountRegisteredEvent(accountID, email string, createdAt time.Time) eventbus.Event {
 	return eventbus.Event{
 		Kind:      "account-registered",
@@ -18,6 +19,21 @@ func AccountRegisteredEvent(accountID, email string, createdAt time.Time) eventb
 		}{
 			AccountID: accountID,
 			Email:     email,
+		},
+	}
+}
+
+// SessionCreatedEvent returns an event that represents an authentication
+// session creation.
+func SessionCreatedEvent(accountID string, createdAt time.Time) eventbus.Event {
+	return eventbus.Event{
+		Kind:      "session-created",
+		ID:        generateID(),
+		CreatedAt: createdAt,
+		Data: struct {
+			AccountID string `json:"account_id"`
+		}{
+			AccountID: accountID,
 		},
 	}
 }

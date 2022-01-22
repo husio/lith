@@ -8,6 +8,25 @@ For example, every time a new account is created, ``account-registered`` event i
 Currently, the only way for an external service to subscribe is to handle webhooks.
 
 
+File system store
+-----------------
+
+During the local development it is easier to use the ``fs`` event sink backend. Every published event is then written to a specified directory::
+
+    EventSinkBackend = "fs"
+
+    [EventSinkFilesystem]
+      Dir = "/tmp/lith_events"
+
+
+Ignore all events
+-----------------
+
+If you decide you do not care about publshed events, you can configure to drop all of them by setting the backend to ``noop`` sink::
+
+    EventSinkBackend = "noop"
+
+
 Webhook
 -------
 
@@ -20,22 +39,6 @@ Add to your configuration file the following lines::
       Secret = "A-LONG-RANDOM-STRING"
 
 Secret should be shared with the subscriber in order to verify each request signature.
-
-
-Development
------------
-
-During the local development it is easier to use the ``fs`` event sink backend. Every published event is then written to a specified directory::
-
-    EventSinkBackend = "fs"
-
-    [EventSinkFilesystem]
-      Dir = "/tmp/lith_events"
-
-
-If you decide you do not care about publshed events, you can configure to drop all of them by setting the backend to ``noop`` sink::
-
-    EventSinkBackend = "noop"
 
 
 
@@ -78,8 +81,19 @@ Example event:
 
 
 account-registered
-------------------
+^^^^^^^^^^^^^^^^^^
+
+``account-registered`` event is emitted when a new Account is created.
 
 Event payload attributes:
   * **account_id** string: Created Account ID.
   * **email** string: Created Account email address.
+
+
+session-created
+^^^^^^^^^^^^^^^
+
+``session-created`` event is emitted when an authentication session is created.
+
+Event payload attributes:
+  * **account_id** string: Created Account ID.

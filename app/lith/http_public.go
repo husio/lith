@@ -1130,7 +1130,7 @@ func (h publicRegisterComplete) ServeHTTP(w http.ResponseWriter, r *http.Request
 		alert.EmitErr(ctx, err,
 			"Cannot emit event.",
 			"account", account.AccountID,
-			"event", "AccountRegisteredEvent")
+			"event", event.Kind)
 	}
 
 	templateContext.Next = registerContext.Next

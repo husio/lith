@@ -35,7 +35,7 @@ func APIHandler(
 
 	p := conf.PathPrefix
 	rt.Add(`GET    `+p+`sessions`, apiSessionIntrospect{store: store, conf: conf})
-	rt.Add(`POST   `+p+`sessions`, apiSessionCreate{store: store, conf: conf, cache: cache})
+	rt.Add(`POST   `+p+`sessions`, apiSessionCreate{store: store, conf: conf, cache: cache, events: events})
 	rt.Add(`DELETE `+p+`sessions`, apiSessionDelete{store: store, conf: conf})
 	rt.Add(`GET    `+p+`twofactor`, apiTwoFactorStatus{store: store, conf: conf})
 	rt.Add(`POST   `+p+`twofactor`, apiTwoFactorEnable{store: store, conf: conf, cache: cache})
@@ -439,7 +439,7 @@ func (h apiAccountCreateComplete) ServeHTTP(w http.ResponseWriter, r *http.Reque
 		alert.EmitErr(ctx, err,
 			"Cannot emit event.",
 			"account", account.AccountID,
-			"event", "AccountRegisteredEvent")
+			"event", event.Kind)
 	}
 
 	web.WriteJSON(w, http.StatusCreated, struct {
@@ -537,9 +537,10 @@ func (h apiSessionDelete) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type apiSessionCreate struct {
-	store Store
-	conf  APIConfiguration
-	cache cache.Store
+	store  Store
+	conf   APIConfiguration
+	events eventbus.Sink
+	cache  cache.Store
 }
 
 func (h apiSessionCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -659,6 +660,14 @@ func (h apiSessionCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			"account_id", account.AccountID)
 		web.WriteJSONStdErr(w, http.StatusInternalServerError)
 		return
+	}
+
+	event := SessionCreatedEvent(account.AccountID, account.CreatedAt)
+	if err := h.events.PublishEvent(ctx, event); err != nil {
+		alert.EmitErr(ctx, err,
+			"Cannot emit event.",
+			"account", account.AccountID,
+			"event", event.Kind)
 	}
 
 	web.WriteJSON(w, http.StatusCreated, responseAccountSession{
