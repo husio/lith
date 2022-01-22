@@ -13,7 +13,7 @@ func AccountRegisteredEvent(accountID, email string, createdAt time.Time) eventb
 		Kind:      "account-registered",
 		ID:        generateID(),
 		CreatedAt: createdAt,
-		Data: struct {
+		Payload: struct {
 			AccountID string `json:"account_id"`
 			Email     string `json:"email"`
 		}{
@@ -30,7 +30,7 @@ func SessionCreatedEvent(accountID string, createdAt time.Time) eventbus.Event {
 		Kind:      "session-created",
 		ID:        generateID(),
 		CreatedAt: createdAt,
-		Data: struct {
+		Payload: struct {
 			AccountID string `json:"account_id"`
 		}{
 			AccountID: accountID,

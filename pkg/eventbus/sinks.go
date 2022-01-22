@@ -43,11 +43,11 @@ type Event struct {
 	// CreatedAt represents the time that the event was created.
 	CreatedAt time.Time `json:"created_at"`
 
-	// Data will loose type information when deserializing JSON. If
+	// Payload will loose type information when deserializing JSON. If
 	// initially a structure was given, JSON will unmarshall it to
 	// map[string]interface{}. This is ok as long as the event published
 	// does not see a difference between those two.
-	Data interface{} `json:"data"`
+	Payload interface{} `json:"payload"`
 }
 
 // NewNoopSink returns a Sink implementation that drops all events.
