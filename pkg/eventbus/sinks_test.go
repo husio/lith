@@ -36,7 +36,7 @@ func TestThroughTaskQueue(t *testing.T) {
 		Kind:      "user-created",
 		ID:        "00001",
 		CreatedAt: now,
-		Data:      UserCreated{Name: "bob", Admin: true},
+		Payload:   UserCreated{Name: "bob", Admin: true},
 	}); err != nil {
 		t.Fatalf("publish event: %s", err)
 	}
