@@ -11,7 +11,7 @@ type Configuration struct {
 	// Event recipient configuraiton.
 	//
 	// EventSinkBackend specifies which backend to use to broadcast events.
-	// Choices are: none, fs, webhook
+	// Choices are: dropall, fs, webhook
 	EventSinkBackend    string
 	EventSinkWebhook    EventSinkWebhookConfiguration
 	EventSinkFilesystem EventSinkFilesystemConfiguration

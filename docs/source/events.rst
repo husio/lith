@@ -25,9 +25,9 @@ During the local development it is easier to use the ``fs`` event sink backend. 
 Ignore all events
 ^^^^^^^^^^^^^^^^^
 
-If you decide you do not care about publshed events, you can configure to drop all of them by setting the backend to ``noop`` sink::
+If you decide you do not care about publshed events, you can configure to drop all of them by setting the backend to ``dropall`` sink::
 
-    EventSinkBackend = "noop"
+    EventSinkBackend = "dropall"
 
 
 Webhook

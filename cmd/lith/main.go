@@ -32,8 +32,9 @@ func main() {
 		TaskQueueDatabase:    "./lith_taskqueue.sqlite3.db?_journal=wal&_fk=on",
 		StoreVacuumFrequency: 31 * time.Minute,
 		Secret:               "",
-		EmailBackend:         "smtp",
 		MaxCacheSize:         1e7,
+		EventSinkBackend:     "dropall",
+		EmailBackend:         "smtp",
 
 		API: lith.APIConfiguration{
 			ListenHTTP:           ":8000",
@@ -235,7 +236,7 @@ func checkConfiguration(c lith.Configuration) []string {
 	}
 
 	switch c.EventSinkBackend {
-	case "none":
+	case "dropall":
 	case "fs":
 		if c.EventSinkFilesystem.Dir == "" {
 			issues = append(issues, `When using "fs" event backend, EventSinkFilesystem.Dir is required.`)
@@ -250,7 +251,7 @@ func checkConfiguration(c lith.Configuration) []string {
 			issues = append(issues, `When using "webhook" event sink EventSinkWebhook.Secret is required.`)
 		}
 	case "":
-		issues = append(issues, `EventSinkBackend is required and must be "none", "fs" or "webhook".`)
+		issues = append(issues, `EventSinkBackend is required and must be "dropall", "fs" or "webhook".`)
 	default:
 		issues = append(issues, "EventSinkBackend value is not recognized.")
 	}

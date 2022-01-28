@@ -73,7 +73,7 @@ func runServer(ctx context.Context, conf lith.Configuration) error {
 
 	var events eventbus.Sink
 	switch conf.EventSinkBackend {
-	case "noop":
+	case "dropall":
 		events = eventbus.NewNoopSink()
 	case "fs":
 		events = eventbus.NewFsSink(conf.EventSinkFilesystem.Dir)
