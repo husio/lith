@@ -13,7 +13,7 @@ func WriteJSON(w http.ResponseWriter, code int, content interface{}) {
 	b, err := json.MarshalIndent(content, "", "\t")
 	if err != nil {
 		code = http.StatusInternalServerError
-		b = []byte(`{"error":"Response serialization failure."}`)
+		b = []byte(`{"code":500,"error":"Response serialization failure."}`)
 	}
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	w.WriteHeader(code)
@@ -30,8 +30,13 @@ func WriteJSONErr(w http.ResponseWriter, code int, message string) {
 		return
 	}
 	WriteJSON(w, code, struct {
+		// Repeat the HTTP response status code so that when inspecting
+		// the response body alone, so that header inspection is not
+		// required to understand the response.
+		Code  int    `json:"code"`
 		Error string `json:"error"`
 	}{
+		Code:  code,
 		Error: message,
 	})
 }

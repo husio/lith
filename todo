@@ -5,11 +5,8 @@ TODO: revisit all templates, fix wording and styling
 TODO: lib/client must implement full API
 TODO: deploy an example for API and public UI usage (heroku? digitalocean?)
 TODO: revisig CSS of public UI
-TODO: write a README
-TODO: documentation and examples
 TODO: update configuration to replace time.Duration with something string serializable
 TODO: translations
-TODO: add events to enable metrics via plugin package (prometheus cannot be compiled with shared flag?)
 TODO: admin password reset
 
 

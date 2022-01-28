@@ -50,8 +50,8 @@ Each event contains a `signature` header that is computed the following way::
 Each JSON serialiezd payload contains a `now` attribute that is set the the request creation time. Assumming that wall clocks that all services are using are well synchronized, make sure to not accept requests older or newer than 30 seconds. This timestamp is included to prevent replay attacks.
 
 
-Event representation
---------------------
+Event objects
+-------------
 
 Each event is a JSON serialized object.
 
