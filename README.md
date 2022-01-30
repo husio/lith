@@ -1,10 +1,12 @@
 [![Go](https://github.com/husio/lith/actions/workflows/test.yml/badge.svg)](https://github.com/husio/lith/actions/workflows/test.yml)
 [![Documentation Status](https://readthedocs.org/projects/lith/badge/?version=latest)](https://lith.readthedocs.io/?badge=latest)
+[Demo](https://lith-demo.herokuapp.com/)
 
 
 Lith is an authentication service. It is small, fast, self-contained and easy to configure.
 
-Documentation is available at https://lith.readthedocs.io .
+Documentation is available at https://lith.readthedocs.io
+Demo instance is available at https://lith-demo.herokuapp.com/
 
 ## Features summary
 
