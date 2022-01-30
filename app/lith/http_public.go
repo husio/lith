@@ -1031,6 +1031,31 @@ func (h publicRegisterComplete) ServeHTTP(w http.ResponseWriter, r *http.Request
 		CSRFField:          csrf.TemplateField(r),
 	}
 
+	session, err := h.store.Session(ctx)
+	if err != nil {
+		alert.EmitErr(ctx, err, "Cannot create store session.")
+		renderPublicErr(w, h.conf, http.StatusInternalServerError, "")
+		return
+	}
+	defer session.Rollback()
+
+	var registerContext struct {
+		Email string
+		Next  string
+	}
+	token := web.PathArg(r, "token")
+	switch err := session.EphemeralToken(ctx, "public-register-account", token, &registerContext); {
+	case err == nil:
+		// All good.
+	case errors.Is(err, ErrNotFound):
+		renderPublicErr(w, h.conf, http.StatusBadRequest, trans.T("Invalid or expired token."))
+		return
+	default:
+		alert.EmitErr(ctx, err, "Cannot get ephemeral token.")
+		renderPublicErr(w, h.conf, http.StatusInternalServerError, "")
+		return
+	}
+
 	if r.Method == "GET" {
 		tmpl.Render(w, http.StatusOK, "public_register_complete.html", templateContext)
 		return
@@ -1055,31 +1080,6 @@ func (h publicRegisterComplete) ServeHTTP(w http.ResponseWriter, r *http.Request
 	if !errs.Empty() {
 		templateContext.Errors = errs
 		tmpl.Render(w, http.StatusBadRequest, "public_register_complete.html", templateContext)
-		return
-	}
-
-	session, err := h.store.Session(ctx)
-	if err != nil {
-		alert.EmitErr(ctx, err, "Cannot create store session.")
-		renderPublicErr(w, h.conf, http.StatusInternalServerError, "")
-		return
-	}
-	defer session.Rollback()
-
-	var registerContext struct {
-		Email string
-		Next  string
-	}
-	token := web.PathArg(r, "token")
-	switch err := session.EphemeralToken(ctx, "public-register-account", token, &registerContext); {
-	case err == nil:
-		// All good.
-	case errors.Is(err, ErrNotFound):
-		renderPublicErr(w, h.conf, http.StatusBadRequest, trans.T("Invalid token."))
-		return
-	default:
-		alert.EmitErr(ctx, err, "Cannot get ephemeral token.")
-		renderPublicErr(w, h.conf, http.StatusInternalServerError, "")
 		return
 	}
 

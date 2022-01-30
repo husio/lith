@@ -170,6 +170,15 @@ func TestPublicRegisterAccount(t *testing.T) {
 	safe := secret.AESSafe("t0p-secret")
 	app := PublicHandler(conf, store, cache, safe, secret.Generate(16), &events, &tasks)
 
+	t.Run("an invalid token cannot be used to render password setting page", func(t *testing.T) {
+		r := httptest.NewRequest("GET", "/public/register/invalid-or-non-existing-token/", nil)
+		w := httptest.NewRecorder()
+		app.ServeHTTP(w, r)
+		if want, got := http.StatusBadRequest, w.Code; want != got {
+			t.Fatalf("want %d response code, got %d, %s", want, got, w.Body)
+		}
+	})
+
 	r := httptest.NewRequest("GET", "/public/register/", nil)
 	w := httptest.NewRecorder()
 	app.ServeHTTP(w, r)
