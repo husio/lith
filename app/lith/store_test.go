@@ -65,6 +65,42 @@ func testStoreImplementation(t *testing.T, newStore func() Store) {
 		}
 	})
 
+	t.Run("create and delete authentication session", func(t *testing.T) {
+		db := newSession(t)
+		withGenerateID(t, "user-12345")
+
+		acc, err := db.CreateAccount(ctx, "testjoe@example.com", "qwertyuiop1234567890")
+		if err != nil {
+			t.Fatalf("cannot create an account: %s", err)
+		}
+		if want, got := "user-12345", acc.AccountID; want != got {
+			t.Fatalf("account ID should be %q, got %q", want, got)
+		}
+
+		if err := db.DeleteSession(ctx, "does-not-exist-id"); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("when deleting a non-existing session, want ErrNotFound, got %+v", err)
+		}
+
+		s1, err := db.CreateSession(ctx, acc.AccountID, time.Minute)
+		if err != nil {
+			t.Fatalf("cannot create an authentication session: %s", err)
+		}
+		if err := db.DeleteSession(ctx, s1); err != nil {
+			t.Fatalf("when deleting an session, want no error, got %+v", err)
+		}
+
+		s2, err := db.CreateSession(ctx, acc.AccountID, time.Minute)
+		if err != nil {
+			t.Fatalf("cannot create an authentication session: %s", err)
+		}
+		if err := db.DeleteAccountSessions(ctx, acc.AccountID); err != nil {
+			t.Fatalf("when deleting all account authentication session, want no error, got %+v", err)
+		}
+		if err := db.DeleteSession(ctx, s2); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("when deleting a non-existing session, want ErrNotFound, got %+v", err)
+		}
+	})
+
 	t.Run("create and manage permission groups", func(t *testing.T) {
 		now := time.Now().UTC().Truncate(time.Second) // UNIX
 		withCurrentTime(t, now)

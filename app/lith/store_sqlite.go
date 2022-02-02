@@ -535,6 +535,14 @@ func (s *sqliteStoreSession) DeleteSession(ctx context.Context, sessionID string
 	return nil
 }
 
+func (s *sqliteStoreSession) DeleteAccountSessions(ctx context.Context, accountID string) error {
+	_, err := s.dbc.ExecContext(ctx, `DELETE FROM sessions WHERE account_id = ?`, accountID)
+	if err != nil {
+		return fmt.Errorf("delete: %w", castSQLiteErr(err))
+	}
+	return nil
+}
+
 func (s *sqliteStoreSession) CreatePermissionGroup(ctx context.Context, description string, permissions []string) (*PermissionGroup, error) {
 	now := currentTime()
 	res := s.dbc.QueryRowContext(ctx, `

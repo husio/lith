@@ -92,6 +92,10 @@ type StoreSession interface {
 	// no longer be used.
 	DeleteSession(ctx context.Context, sessionID string) error
 
+	// DeleteAccountSessions deletes all authentication sessions that
+	// belong to the account with the given ID.
+	DeleteAccountSessions(ctx context.Context, accountID string) error
+
 	// RefreshSession updates a session expiration time, extending it to at
 	// least given duration. If the current expiration time is greater than
 	// provided duration, no update is made.

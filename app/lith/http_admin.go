@@ -56,6 +56,7 @@ func AdminHandler(
 	admin.Add(`GET      `+p+`accounts/`, adminAccountsList{store: store, conf: conf})
 	admin.Add(`GET,POST `+p+`accounts/create/`, adminAccountCreate{store: store, conf: conf, flash: flash, events: events})
 	admin.Add(`GET,POST `+p+`accounts/{account-id}/`, adminAccountDetails{store: store, conf: conf, flash: flash})
+	admin.Add(`POST     `+p+`accounts/{account-id}/sessions/`, adminAccountSessions{store: store, conf: conf, flash: flash})
 	admin.Add(`GET      `+p+`permissiongroups/`, adminPermissionGroupsList{store: store, conf: conf, flash: flash})
 	admin.Add(`GET,POST `+p+`permissiongroups/create/`, adminPermissionGroupCreate{store: store, conf: conf, flash: flash})
 	admin.Add(`GET,POST `+p+`permissiongroups/{permissiongroup-id:\d+}/`, adminPermissionGroupDetails{store: store, conf: conf, flash: flash})
@@ -1010,6 +1011,50 @@ func (h adminAccountDetails) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	templateContext.PermissionGroups = extGroups
 	templateContext.FlashMsg = h.flash.Pop(w, r)
 	tmpl.Render(w, http.StatusOK, "admin_account_details.html", templateContext)
+}
+
+type adminAccountSessions struct {
+	store Store
+	conf  AdminPanelConfiguration
+	flash flashmsg
+}
+
+func (h adminAccountSessions) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if _, ok := adminOrRedirect(w, r, h.conf); !ok {
+		return
+	}
+
+	ctx := r.Context()
+
+	session, err := h.store.Session(ctx)
+	if err != nil {
+		alert.EmitErr(ctx, err, "Cannot create store session.")
+		renderAdminErr(w, h.conf, http.StatusInternalServerError, "")
+		return
+	}
+	defer session.Rollback()
+
+	accountID := web.PathArg(r, "account-id")
+	if err := session.DeleteAccountSessions(ctx, accountID); err != nil {
+		alert.EmitErr(ctx, err, "Cannot delete all account authentication session.",
+			"account_id", accountID)
+		renderAdminErr(w, h.conf, http.StatusInternalServerError, "")
+		return
+
+	}
+
+	if err := session.Commit(); err != nil {
+		alert.EmitErr(ctx, err, "Cannot commit session.")
+		renderAdminErr(w, h.conf, http.StatusInternalServerError, "Cannot commit changes.")
+		return
+	}
+	trans := transFor(ctx)
+	h.flash.Notify(w, r, FlashMsg{
+		Kind: "green",
+		Text: fmt.Sprintf(trans.T("All authentication sessions of account %q were deleted."), accountID),
+	})
+	http.Redirect(w, r, h.conf.PathPrefix+"accounts/"+accountID+"/", http.StatusSeeOther)
+	return
 }
 
 type adminPermissionGroupsList struct {

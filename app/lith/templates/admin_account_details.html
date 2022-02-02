@@ -63,4 +63,16 @@
   <button class="green">{{translate "Save changes"}}</button>
 </form>
 
+<form method="POST" action="./sessions/">
+  <fieldset>
+    <header>{{translate "Authentication sessions"}}</header>
+    <p>
+      {{translate "Deleting all authentication sessions will log out this account from all applications."}}
+    </p>
+    <button class="red">Delete all sessions</button>
+    {{.CSRFField}}
+  </fieldset>
+</form>
+
+
 {{template "admin_footer.html" .}}
