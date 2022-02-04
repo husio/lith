@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -511,23 +512,54 @@ func (h apiSessionDelete) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Rollback()
 
-	switch err := db.DeleteSession(ctx, sessionID); {
+	// For simplicity, we do not check request content-type, but expect
+	// either no body or JSON encoded payload.
+	input := struct {
+		All bool `json:"all"`
+	}{
+		All: false,
+	}
+	switch err := json.NewDecoder(r.Body).Decode(&input); {
 	case err == nil:
-		// All good.
-	case errors.Is(err, ErrNotFound):
-		// This is a rare case when authentication was successful,
-		// validated by the middleware, but the session no longer
-		// exists in the database. Since the session is gone, operation
-		// can be considered successful and there is nothing else to
-		// do.
-		w.WriteHeader(http.StatusGone)
-		return
+		// All good, JSON input was provided.
+	case errors.Is(err, io.EOF):
+		// No input, this is fine. Delete only the current session.
 	default:
-		alert.EmitErr(ctx, err, "Cannot delete auth sessions.",
-			"session_id", sessionID)
-		web.WriteJSONStdErr(w, http.StatusInternalServerError)
+		web.WriteJSONErr(w, http.StatusBadRequest, fmt.Sprintf("Cannot read request body: %s", err))
 		return
 	}
+
+	if input.All {
+		acc, ok := CurrentAccount(ctx)
+		if !ok {
+			web.WriteJSONStdErr(w, http.StatusUnauthorized)
+			return
+		}
+		if err := db.DeleteAccountSessions(ctx, acc.AccountID); err != nil {
+			alert.EmitErr(ctx, err, "Cannot delete all account authentication sessions.",
+				"account_id", acc.AccountID)
+			web.WriteJSONStdErr(w, http.StatusInternalServerError)
+			return
+		}
+	} else {
+		switch err := db.DeleteSession(ctx, sessionID); {
+		case err == nil:
+			// All good.
+		case errors.Is(err, ErrNotFound):
+			// This is a rare case when authentication was successful,
+			// validated by the middleware, but the session no longer
+			// exists in the database. Since the session is gone, operation
+			// can be considered successful and there is nothing else to
+			// do.
+			w.WriteHeader(http.StatusGone)
+			return
+		default:
+			alert.EmitErr(ctx, err, "Cannot delete an authentication sessions.")
+			web.WriteJSONStdErr(w, http.StatusInternalServerError)
+			return
+		}
+	}
+
 	if err := db.Commit(); err != nil {
 		alert.EmitErr(ctx, err, "Cannot commit session.")
 		web.WriteJSONStdErr(w, http.StatusInternalServerError)

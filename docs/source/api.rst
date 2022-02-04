@@ -161,6 +161,24 @@ Terminate an existing Authentication Session
    :statuscode 401: A valid Authentication Session was not provided.
 
 
+.. http:delete:: /sessions
+
+   To terminate all existing Authentication Session that belong to an account, send JSON serialized ``{"all": true}`` payload as the request body.
+   Account is determined by the session token provided during authentication.
+
+   **Example request**:
+
+   .. sourcecode:: http
+
+      DELETE /sessions HTTP/1.1
+      Authorization: Bearer 122813edb8dea90702d2bffb90cf3e8b
+      Content-Lenth: 13
+
+      {"all": true}
+
+   :statuscode 204: All Authentication Sessions were successfully deleted.
+   :statuscode 401: A valid Authentication Session was not provided.
+
 
 
 Two Factor authentication

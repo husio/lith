@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base32"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -124,6 +125,51 @@ func TestAPIManageSessionNoTwoFactor(t *testing.T) {
 	if want, got := http.StatusUnauthorized, w.Code; want != got {
 		t.Fatalf("want double delete response %d status, got %d: %s", want, got, w.Body)
 	}
+}
+
+func TestAPIDeleteAllAccountAuthenticationSessions(t *testing.T) {
+	ctx := context.Background()
+	ctx = alert.WithEmitter(ctx, alert.NewTestEmitter(t))
+
+	store := newTestSQLiteStore(t)
+	cache := cache.NewLocalMemCache(1e6)
+
+	conf := APIConfiguration{
+		PathPrefix:           "/api/",
+		SessionMaxAge:        time.Hour,
+		SessionRefreshAge:    time.Hour,
+		RequireTwoFactorAuth: false,
+	}
+
+	var sessions []string
+	atomic(t, store, func(s StoreSession) {
+		aid := insertAccount(t, s, "jim@example.com", "loginpass", "", []uint64{PermissionGroupActiveAccount})
+		for i := 0; i < 10; i++ {
+			sid, err := s.CreateSession(ctx, aid, time.Hour)
+			if err != nil {
+				t.Fatalf("cannot create an authentication session: %s", err)
+			}
+			sessions = append(sessions, sid)
+		}
+	})
+
+	app := APIHandler(conf, store, cache, eventbus.NewNoopSink(), nil)
+
+	r := httptest.NewRequest("DELETE", "/api/sessions", strings.NewReader(`{"all":true}`))
+	r.Header.Set("authorization", "Bearer "+sessions[3])
+	w := httptest.NewRecorder()
+	app.ServeHTTP(w, r)
+	if w.Code != http.StatusGone {
+		t.Fatalf("want Gone status, got %d: %s", w.Code, w.Body)
+	}
+
+	atomic(t, store, func(s StoreSession) {
+		for i, sid := range sessions {
+			if _, err := s.AccountBySession(ctx, sid); !errors.Is(err, ErrNotFound) {
+				t.Fatalf("session %d %q should be deleted but was not", i, sid)
+			}
+		}
+	})
 }
 
 func TestAPICreateSessionWithTwoFactor(t *testing.T) {
