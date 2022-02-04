@@ -172,6 +172,7 @@ Terminate an existing Authentication Session
 
       DELETE /sessions HTTP/1.1
       Authorization: Bearer 122813edb8dea90702d2bffb90cf3e8b
+      Content-Type: application/json
       Content-Lenth: 13
 
       {"all": true}
