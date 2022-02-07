@@ -1,11 +1,10 @@
 A placeholder file for tasks that cannot be placed in code.
 
+TODO: use a better configuration format than the current TOML go binding
+TODO: update configuration to replace time.Duration with something string serializable
 TODO: tests
 TODO: revisit all templates, fix wording and styling
 TODO: lib/client must implement full API
-TODO: deploy an example for API and public UI usage (heroku? digitalocean?)
-TODO: revisig CSS of public UI
-TODO: update configuration to replace time.Duration with something string serializable
 TODO: translations
 TODO: admin password reset
 

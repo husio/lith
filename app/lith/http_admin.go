@@ -1449,8 +1449,7 @@ func (c adminTemplateCore) AbsolutePath(path string) string {
 // included.
 func (c adminTemplateCore) CSS() []string {
 	return []string{
-		c.conf.PathPrefix + "statics/normalize.css",
-		c.conf.PathPrefix + "statics/custom.css",
+		c.conf.PathPrefix + "statics/base.css",
 	}
 }
 

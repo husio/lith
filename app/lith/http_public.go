@@ -67,8 +67,7 @@ func PublicHandler(
 	)
 
 	rt := http.NewServeMux()
-	// TODO use public statics
-	rt.Handle(p+`statics/`, http.StripPrefix(p+"statics", http.FileServer(http.FS(adminStaticsFS()))))
+	rt.Handle(p+`statics/`, http.StripPrefix(p+"statics", http.FileServer(http.FS(publicStaticsFS()))))
 	rt.Handle(`/`, public)
 	return rt
 }
@@ -1206,8 +1205,7 @@ func (c publicTemplateCore) CSS() []string {
 	urls := make([]string, 0, 6)
 	if !c.conf.DisableDefaultCSS {
 		urls = append(urls,
-			c.conf.PathPrefix+"statics/normalize.css",
-			c.conf.PathPrefix+"statics/custom.css",
+			c.conf.PathPrefix+"statics/base.css",
 		)
 	}
 	urls = append(urls, c.conf.IncludeExtraCSS...)
