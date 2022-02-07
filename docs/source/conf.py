@@ -21,7 +21,7 @@ templates_path = ['_templates']
 
 exclude_patterns = []
 
-html_theme = 'press'
+html_theme = 'sphinx_book_theme'
 
 html_theme_options = {
   "external_links": [
