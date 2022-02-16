@@ -354,7 +354,7 @@ func (h publicLogin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if next := r.URL.Query().Get("next"); next != "" {
 		templateContext.Next = next
-	} else if next := r.Header.Get("referrer"); next != "" {
+	} else if next := r.Referer(); next != "" {
 		// Use referrer as the last resort, so that logging in does not
 		// redirect back to login page.
 		templateContext.Next = next
