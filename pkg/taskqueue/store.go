@@ -60,7 +60,7 @@ func (s *Store) Close() error {
 }
 
 // Push one or more tasks to the queue. This is an atomic operation.
-func (s *Store) Push(ctx context.Context, tasks []Pushed) ([]string, error) {
+func (s *Store) Push(ctx context.Context, tasks []TaskReq) ([]string, error) {
 	if len(tasks) == 0 {
 		return nil, nil
 	}
@@ -105,7 +105,9 @@ func (s *Store) Push(ctx context.Context, tasks []Pushed) ([]string, error) {
 	return taskIDs, nil
 }
 
-type Pushed struct {
+// TaskReq represents a task creation request. If successfully processed,
+// results in a task being queued.
+type TaskReq struct {
 	Name      string
 	Payload   []byte
 	Retry     uint
@@ -150,7 +152,7 @@ func (s *Store) Delete(ctx context.Context, taskID string) error {
 	return nil
 }
 
-func (s *Store) Pull(ctx context.Context) (*Pulled, error) {
+func (s *Store) Pull(ctx context.Context) (*Task, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("start transaction: %w", err)
@@ -167,7 +169,7 @@ func (s *Store) Pull(ctx context.Context) (*Pulled, error) {
 		LIMIT 1
 	`, now.Unix())
 
-	var task Pulled
+	var task Task
 	var timeout int64
 	if err := row.Scan(&task.TaskID, &task.Name, &task.Payload, &timeout); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -191,7 +193,8 @@ func (s *Store) Pull(ctx context.Context) (*Pulled, error) {
 	return &task, nil
 }
 
-type Pulled struct {
+// Task represents a single task (job) acquired from the queue.
+type Task struct {
 	TaskID  string
 	Name    string
 	Payload []byte

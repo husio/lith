@@ -153,7 +153,7 @@ func (r *Registry) Schedule(ctx context.Context, s Payload, opts ...ScheduleOpti
 		fn(&conf)
 	}
 
-	ids, err := r.queue.Push(ctx, []Pushed{
+	ids, err := r.queue.Push(ctx, []TaskReq{
 		{Name: s.TaskName(), Payload: payload, Retry: conf.retry, ExecuteIn: conf.executeIn, Timeout: conf.timeout},
 	})
 	if err != nil {

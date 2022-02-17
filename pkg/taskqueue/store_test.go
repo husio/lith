@@ -21,7 +21,7 @@ func BenchmarkStorePullHappyPath(b *testing.B) {
 	defer q.Close()
 
 	ctx := context.Background()
-	toPush := []Pushed{{Name: "task", Retry: 10}}
+	toPush := []TaskReq{{Name: "task", Retry: 10}}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -54,7 +54,7 @@ func TestConcurrentAccess(t *testing.T) {
 			defer wg.Done()
 			<-start
 
-			if _, err := q.Push(context.Background(), []Pushed{{Name: "foo"}}); err != nil {
+			if _, err := q.Push(context.Background(), []TaskReq{{Name: "foo"}}); err != nil {
 				t.Errorf("cannot push: %s", err)
 			}
 		}()
@@ -87,17 +87,17 @@ func TestTaskQueue(t *testing.T) {
 
 	ctx := context.Background()
 
-	_, err = q.Push(ctx, []Pushed{{Name: "first", ExecuteIn: 20 * time.Minute}})
+	_, err = q.Push(ctx, []TaskReq{{Name: "first", ExecuteIn: 20 * time.Minute}})
 	if err != nil {
 		t.Fatalf("push first task: %s", err)
 	}
-	secondIDs, err := q.Push(ctx, []Pushed{{Name: "second", Retry: 10, ExecuteIn: 5 * time.Minute}})
+	secondIDs, err := q.Push(ctx, []TaskReq{{Name: "second", Retry: 10, ExecuteIn: 5 * time.Minute}})
 	if err != nil {
 		t.Fatalf("push second task: %s", err)
 	}
 	secondID := secondIDs[0]
 
-	thirdIDs, err := q.Push(ctx, []Pushed{{Name: "third", Payload: []byte("3"), Retry: 10, ExecuteIn: 10 * time.Minute}})
+	thirdIDs, err := q.Push(ctx, []TaskReq{{Name: "third", Payload: []byte("3"), Retry: 10, ExecuteIn: 10 * time.Minute}})
 	if err != nil {
 		t.Fatalf("push third task: %s", err)
 	}
@@ -173,7 +173,7 @@ func TestTaskRetryAndDeadqueue(t *testing.T) {
 
 	ctx := context.Background()
 
-	if _, err := q.Push(ctx, []Pushed{{Name: "first", Retry: 20}}); err != nil {
+	if _, err := q.Push(ctx, []TaskReq{{Name: "first", Retry: 20}}); err != nil {
 		t.Fatalf("push task: %s", err)
 	}
 
@@ -208,7 +208,7 @@ func TestTaskDelete(t *testing.T) {
 
 	ctx := context.Background()
 
-	ids, err := q.Push(ctx, []Pushed{
+	ids, err := q.Push(ctx, []TaskReq{
 		{Name: "first", Retry: 20},
 		{Name: "second", Retry: 20},
 	})
