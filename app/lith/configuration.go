@@ -225,4 +225,8 @@ type AdminPanelConfiguration struct {
 	// authentication is optional and can be turned on by each account
 	// owner.
 	RequireTwoFactorAuth bool
+
+	// AllowPasswordChange if set to true, allows to overwrite any account
+	// password via the admin panel.
+	AllowPasswordChange bool
 }

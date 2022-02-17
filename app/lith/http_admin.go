@@ -57,6 +57,7 @@ func AdminHandler(
 	admin.Add(`GET,POST `+p+`accounts/create/`, adminAccountCreate{store: store, conf: conf, flash: flash, events: events})
 	admin.Add(`GET,POST `+p+`accounts/{account-id}/`, adminAccountDetails{store: store, conf: conf, flash: flash})
 	admin.Add(`POST     `+p+`accounts/{account-id}/sessions/`, adminAccountSessions{store: store, conf: conf, flash: flash})
+	admin.Add(`GET,POST `+p+`accounts/{account-id}/password/`, adminAccountPassword{store: store, conf: conf, flash: flash})
 	admin.Add(`GET      `+p+`permissiongroups/`, adminPermissionGroupsList{store: store, conf: conf, flash: flash})
 	admin.Add(`GET,POST `+p+`permissiongroups/create/`, adminPermissionGroupCreate{store: store, conf: conf, flash: flash})
 	admin.Add(`GET,POST `+p+`permissiongroups/{permissiongroup-id:\d+}/`, adminPermissionGroupDetails{store: store, conf: conf, flash: flash})
@@ -897,16 +898,18 @@ func (h adminAccountDetails) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	templateContext := struct {
 		adminTemplateCore
-		CurrentAccount   *Account
-		Account          *Account
-		AccountTwoFactor bool
-		PermissionGroups []*ExtendedPermissionGroup
-		CSRFField        template.HTML
-		FlashMsg         *FlashMsg
+		CurrentAccount      *Account
+		Account             *Account
+		AccountTwoFactor    bool
+		AllowPasswordChange bool
+		PermissionGroups    []*ExtendedPermissionGroup
+		CSRFField           template.HTML
+		FlashMsg            *FlashMsg
 	}{
-		adminTemplateCore: newAdminTemplateCore(h.conf, "Accounts"),
-		CurrentAccount:    currentAccount,
-		CSRFField:         csrf.TemplateField(r),
+		adminTemplateCore:   newAdminTemplateCore(h.conf, "Accounts"),
+		CurrentAccount:      currentAccount,
+		AllowPasswordChange: h.conf.AllowPasswordChange,
+		CSRFField:           csrf.TemplateField(r),
 	}
 
 	ctx := r.Context()
@@ -1011,6 +1014,106 @@ func (h adminAccountDetails) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	templateContext.PermissionGroups = extGroups
 	templateContext.FlashMsg = h.flash.Pop(w, r)
 	tmpl.Render(w, http.StatusOK, "admin_account_details.html", templateContext)
+}
+
+type adminAccountPassword struct {
+	store Store
+	conf  AdminPanelConfiguration
+	flash flashmsg
+}
+
+func (h adminAccountPassword) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if _, ok := adminOrRedirect(w, r, h.conf); !ok {
+		return
+	}
+
+	ctx := r.Context()
+	trans := transFor(ctx)
+
+	if !h.conf.AllowPasswordChange {
+		renderAdminErr(w, h.conf, http.StatusForbidden, trans.T("Password change via admin panel is not allowed."))
+		return
+	}
+
+	session, err := h.store.Session(ctx)
+	if err != nil {
+		alert.EmitErr(ctx, err, "Cannot create store session.")
+		renderAdminErr(w, h.conf, http.StatusInternalServerError, "")
+		return
+	}
+	defer session.Rollback()
+
+	templateContext := struct {
+		adminTemplateCore
+		Account   *Account
+		Errors    validation.Errors
+		CSRFField template.HTML
+	}{
+		adminTemplateCore: newAdminTemplateCore(h.conf, "Account password"),
+		CSRFField:         csrf.TemplateField(r),
+	}
+
+	account, err := session.AccountByID(ctx, web.PathArg(r, "account-id"))
+	switch {
+	case err == nil:
+		templateContext.Account = account
+	case errors.Is(err, ErrNotFound):
+		renderAdminErr(w, h.conf, http.StatusNotFound, "Account does not exist.")
+		return
+	default:
+		alert.EmitErr(ctx, err, "Cannot get account by ID.",
+			"account_id", web.PathArg(r, "account-id"))
+		renderAdminErr(w, h.conf, http.StatusInternalServerError, "Cannot get account details.")
+		return
+	}
+
+	if r.Method == "GET" {
+		tmpl.Render(w, http.StatusOK, "admin_account_password.html", templateContext)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		renderAdminErr(w, h.conf, http.StatusBadRequest, "Cannot parse form.")
+		return
+	}
+
+	password := r.Form.Get("password")
+	passRepeat := r.Form.Get("password_repeat")
+
+	if password != passRepeat {
+		templateContext.Errors.Add("password", trans.T("Entered passwords are not the same."))
+	}
+	if n := len(password); n == 0 {
+		templateContext.Errors.AddRequired("password")
+	}
+
+	if !templateContext.Errors.Empty() {
+		tmpl.Render(w, http.StatusBadRequest, "admin_account_password.html", templateContext)
+		return
+	}
+
+	if err := session.UpdateAccountPassword(ctx, account.AccountID, password); err != nil {
+		alert.EmitErr(ctx, err, "Cannot update account password.",
+			"account_id", account.AccountID)
+		renderAdminErr(w, h.conf, http.StatusInternalServerError, "Cannot update password.")
+		return
+	}
+
+	addChangelog(ctx, session, "updated", "Account", account.AccountID)
+
+	if err := session.Commit(); err != nil {
+		alert.EmitErr(ctx, err, "Cannot commit session.",
+			"account_id", account.AccountID)
+		renderAdminErr(w, h.conf, http.StatusInternalServerError, "Cannot commit changes.")
+		return
+	}
+
+	h.flash.Notify(w, r, FlashMsg{
+		Kind: "green",
+		Text: fmt.Sprintf(trans.T("Account %q password successfully updated."), account.Email),
+	})
+
+	http.Redirect(w, r, h.conf.PathPrefix+"accounts/"+account.AccountID+"/", http.StatusSeeOther)
 }
 
 type adminAccountSessions struct {

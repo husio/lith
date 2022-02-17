@@ -20,6 +20,13 @@
       {{translate "Email"}}
       <input name="email" value="{{.Account.Email}}" disabled>
     </label>
+
+    {{if .AllowPasswordChange}}
+      <p>
+          <a class="button" href="./password/">{{translate "Change password"}}</a>
+      </p>
+    {{end}}
+
     <label>
       {{translate "Account Permissions"}}
       <div>
