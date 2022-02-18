@@ -153,7 +153,7 @@ func (h adminLogin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	email := normalizeEmail(r.Form.Get("email"))
+	email := NormalizeEmail(r.Form.Get("email"))
 	password := r.Form.Get("password")
 
 	templateContext.Email = email
@@ -820,7 +820,7 @@ func (h adminAccountCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	trans := transFor(ctx)
 
-	templateContext.Email = normalizeEmail(r.Form.Get("email"))
+	templateContext.Email = NormalizeEmail(r.Form.Get("email"))
 	if templateContext.Email == "" {
 		templateContext.Errors.Add("email", trans.T("Email is required."))
 	}

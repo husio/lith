@@ -11,7 +11,7 @@ import (
 func AccountRegisteredEvent(accountID, email string, createdAt time.Time) eventbus.Event {
 	return eventbus.Event{
 		Kind:      "account-registered",
-		ID:        generateID(),
+		ID:        GenerateID(),
 		CreatedAt: createdAt,
 		Payload: struct {
 			AccountID string `json:"account_id"`
@@ -28,7 +28,7 @@ func AccountRegisteredEvent(accountID, email string, createdAt time.Time) eventb
 func SessionCreatedEvent(accountID string, createdAt time.Time) eventbus.Event {
 	return eventbus.Event{
 		Kind:      "session-created",
-		ID:        generateID(),
+		ID:        GenerateID(),
 		CreatedAt: createdAt,
 		Payload: struct {
 			AccountID string `json:"account_id"`

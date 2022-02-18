@@ -29,6 +29,7 @@ func APIHandler(
 	cache cache.Store,
 	events eventbus.Sink,
 	queue taskqueue.Scheduler,
+	now func() time.Time,
 ) http.Handler {
 	rt := web.NewRouter()
 	rt.MethodNotAllowed = apiDefaultHandler{code: http.StatusMethodNotAllowed}
@@ -36,7 +37,7 @@ func APIHandler(
 
 	p := conf.PathPrefix
 	rt.Add(`GET    `+p+`sessions`, apiSessionIntrospect{store: store, conf: conf})
-	rt.Add(`POST   `+p+`sessions`, apiSessionCreate{store: store, conf: conf, cache: cache, events: events})
+	rt.Add(`POST   `+p+`sessions`, apiSessionCreate{store: store, conf: conf, cache: cache, events: events, now: now})
 	rt.Add(`DELETE `+p+`sessions`, apiSessionDelete{store: store, conf: conf})
 	rt.Add(`GET    `+p+`twofactor`, apiTwoFactorStatus{store: store, conf: conf})
 	rt.Add(`POST   `+p+`twofactor`, apiTwoFactorEnable{store: store, conf: conf, cache: cache})
@@ -93,7 +94,7 @@ func (h apiPasswordResetInit) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var errs validation.Errors
-	input.Email = normalizeEmail(input.Email)
+	input.Email = NormalizeEmail(input.Email)
 	if input.Email == "" {
 		errs.AddRequired("email")
 	}
@@ -275,7 +276,7 @@ func (h apiAccountCreateInit) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var errs validation.Errors
-	input.Email = normalizeEmail(input.Email)
+	input.Email = NormalizeEmail(input.Email)
 	if input.Email == "" {
 		errs.AddRequired("email")
 	} else if ok, _ := regexp.MatchString(h.conf.AllowRegisterEmail, input.Email); !ok {
@@ -573,6 +574,7 @@ type apiSessionCreate struct {
 	conf   APIConfiguration
 	events eventbus.Sink
 	cache  cache.Store
+	now    func() time.Time
 }
 
 func (h apiSessionCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -588,7 +590,7 @@ func (h apiSessionCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var errs validation.Errors
-	input.Email = normalizeEmail(input.Email)
+	input.Email = NormalizeEmail(input.Email)
 	if input.Email == "" {
 		errs.AddRequired("email")
 	}
@@ -708,7 +710,7 @@ func (h apiSessionCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Permissions: account.Permissions,
 
 		// This is a good enough estimation.
-		ExpiresAt: currentTime().Add(h.conf.SessionMaxAge),
+		ExpiresAt: h.now().Add(h.conf.SessionMaxAge),
 	})
 }
 
@@ -786,7 +788,7 @@ func (h apiTwoFactorEnable) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	account, ok := CurrentAccount(ctx)
 	if !ok {
 		account = nil
-		input.Email = normalizeEmail(input.Email)
+		input.Email = NormalizeEmail(input.Email)
 		if len(input.Email) == 0 {
 			errs.AddRequired("email")
 		}

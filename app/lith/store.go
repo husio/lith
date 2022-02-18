@@ -2,11 +2,8 @@ package lith
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/husio/lith/pkg/secret"
@@ -221,24 +218,6 @@ var (
 	// ErrPassword is returned whenever a password comparison fails.
 	ErrPassword = fmt.Errorf("%s: invalid password", ErrStore)
 )
-
-// currentTime is a variable so that it can be overwritten in tests.
-var currentTime = func() time.Time {
-	return time.Now().UTC().Truncate(time.Second)
-}
-
-// generateID is a variable so that it can be overwritten in tests.
-var generateID = func() string {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		panic(err)
-	}
-	return hex.EncodeToString(b)
-}
-
-func normalizeEmail(e string) string {
-	return strings.TrimSpace(strings.ToLower(e))
-}
 
 // Certain permission groups are provided by the migration and should not be
 // deleted.

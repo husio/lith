@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/husio/lith/app/lith"
+	"github.com/husio/lith/app/lith/store/sqlite"
 	"github.com/husio/lith/pkg/secret"
 )
 
@@ -47,7 +48,7 @@ func cmdUserAdd(ctx context.Context, conf lith.Configuration, args []string) err
 	}
 
 	safe := secret.AESSafe(conf.Secret)
-	db, err := lith.OpenSQLiteStore(conf.Database, safe)
+	db, err := sqlite.OpenStore(conf.Database, safe)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}

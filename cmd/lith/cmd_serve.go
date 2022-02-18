@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/husio/lith/app/lith"
+	"github.com/husio/lith/app/lith/store/sqlite"
 	"github.com/husio/lith/pkg/alert"
 	"github.com/husio/lith/pkg/cache"
 	"github.com/husio/lith/pkg/email"
@@ -32,8 +33,12 @@ func cmdServe(ctx context.Context, conf lith.Configuration, args []string) error
 func runServer(ctx context.Context, conf lith.Configuration) error {
 	cache := cache.NewLocalMemCache(conf.MaxCacheSize)
 
+	now := func() time.Time {
+		return time.Now().UTC().Truncate(time.Second)
+	}
+
 	safe := secret.AESSafe(conf.Secret)
-	store, err := lith.OpenSQLiteStore(conf.Database, safe)
+	store, err := sqlite.OpenStore(conf.Database, safe)
 	if err != nil {
 		return fmt.Errorf("open sqlite store: %w", err)
 	}
@@ -104,7 +109,7 @@ func runServer(ctx context.Context, conf lith.Configuration) error {
 		registerApp(addr, conf.PublicUI.PathPrefix, lith.PublicHandler(conf.PublicUI, store, cache, safe, secret, events, bgJobQueue))
 	}
 	if addr := conf.API.ListenHTTP; addr != "" {
-		registerApp(addr, conf.API.PathPrefix, lith.APIHandler(conf.API, store, cache, events, bgJobQueue))
+		registerApp(addr, conf.API.PathPrefix, lith.APIHandler(conf.API, store, cache, events, bgJobQueue, now))
 	}
 
 	if addr := conf.AdminPanel.ListenHTTP; addr != "" {

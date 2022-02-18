@@ -9,11 +9,13 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/husio/lith/app/lith/store/sqlite"
 	"github.com/husio/lith/pkg/alert"
 	"github.com/husio/lith/pkg/cache"
 	"github.com/husio/lith/pkg/eventbus"
@@ -587,4 +589,18 @@ func jsonBody(t testing.TB, payload interface{}) io.Reader {
 		t.Fatal(err)
 	}
 	return &b
+}
+
+func newTestSQLiteStore(t testing.TB) Store {
+	// Allow to introspect database by switching into a file for storage.
+	dbpath := os.Getenv("TEST_DATABASE")
+	if dbpath == "" {
+		dbpath = ":memory:?_mode=memory&_fk=on&_txlock=immediate"
+	}
+	store, err := sqlite.OpenStore(dbpath, secret.AESSafe("t0p-secret-value"))
+	if err != nil {
+		t.Fatalf("open new sqlite store: %s", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	return store
 }

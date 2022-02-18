@@ -129,7 +129,7 @@ func (h publicPasswordReset) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer session.Rollback()
 
-	email := normalizeEmail(r.Form.Get("email"))
+	email := NormalizeEmail(r.Form.Get("email"))
 	account, err := session.AccountByEmail(ctx, email)
 	switch {
 	case err == nil:
@@ -372,7 +372,7 @@ func (h publicLogin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	email := normalizeEmail(r.Form.Get("email"))
+	email := NormalizeEmail(r.Form.Get("email"))
 	password := r.Form.Get("password")
 
 	templateContext.Email = email
@@ -942,7 +942,7 @@ func (h publicRegister) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var errs validation.Errors
-	email := normalizeEmail(r.Form.Get("email"))
+	email := NormalizeEmail(r.Form.Get("email"))
 	templateContext.Email = email
 	if ok, _ := regexp.MatchString(h.conf.AllowRegisterEmail, email); !ok {
 		errs.Add("email", trans.T("Email address not allowed to register."))

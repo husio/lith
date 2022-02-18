@@ -9,13 +9,46 @@ import (
 	"time"
 )
 
-func testStoreImplementation(t *testing.T, newStore func() Store) {
+func RunTestStoreImplementation(
+	t *testing.T,
+	newStore func(
+		now func() time.Time,
+		newID func() string,
+	) Store,
+) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	currentNow := time.Now().UTC().Truncate(time.Second)
+	now := func() time.Time { return currentNow }
+
+	// withCurrentTime overwrites the current time as observed by the store until
+	// the test cleanup.
+	withCurrentTime := func(t testing.TB, now time.Time) {
+		t.Helper()
+		original := currentNow
+		currentNow = now
+		t.Cleanup(func() { currentNow = original })
+	}
+
+	generateID := func() string { return GenerateID() }
+
+	// withGenerateID overwrites the current ID generator to always
+	// return given value until the test cleanup.
+	withGenerateID := func(t testing.TB, id string) {
+		t.Helper()
+		original := generateID
+		generateID = func() string { return id }
+		t.Cleanup(func() { generateID = original })
+	}
+
 	newSession := func(t *testing.T) StoreSession {
 		t.Helper()
-		s, err := newStore().Session(ctx)
+		store := newStore(
+			func() time.Time { return now() },
+			func() string { return generateID() },
+		)
+		s, err := store.Session(ctx)
 		if err != nil {
 			t.Fatalf("create new session: %s", err)
 		}
@@ -324,24 +357,6 @@ func testStoreImplementation(t *testing.T, newStore func() Store) {
 		}
 
 	})
-}
-
-// withCurrentTime overwrites the current time as observed by the store until
-// the test cleanup.
-func withCurrentTime(t testing.TB, now time.Time) {
-	t.Helper()
-	original := currentTime
-	currentTime = func() time.Time { return now }
-	t.Cleanup(func() { currentTime = original })
-}
-
-// withGenerateID overwrites the current ID generator to always
-// return given value until the test cleanup.
-func withGenerateID(t testing.TB, id string) {
-	t.Helper()
-	original := generateID
-	generateID = func() string { return id }
-	t.Cleanup(func() { generateID = original })
 }
 
 func insertAccount(t testing.TB, s StoreSession, email, password, totpSecret string, permissionGroups []uint64) string {
