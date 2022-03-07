@@ -16,13 +16,19 @@ import (
 	_ "embed"
 
 	"github.com/husio/lith/app/lith"
+	"github.com/husio/lith/app/lith/store"
 	"github.com/husio/lith/pkg/secret"
 	"github.com/mattn/go-sqlite3"
 	"golang.org/x/crypto/bcrypt"
 )
 
 // OpenStore returns a store implementation backed by an SQLite engine.
-func OpenStore(dbpath string, safe secret.Safe) (*Store, error) {
+func OpenStore(
+	dbpath string,
+	safe secret.Safe,
+	now func() time.Time,
+	generateID func() string,
+) (*Store, error) {
 	db, err := sql.Open("sqlite3", dbpath)
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
@@ -36,9 +42,9 @@ func OpenStore(dbpath string, safe secret.Safe) (*Store, error) {
 		now: func() time.Time {
 			// Truncate time to seconds, because we store it as
 			// UNIX seconds.
-			return time.Now().UTC().Truncate(time.Second)
+			return now().UTC().Truncate(time.Second)
 		},
-		generateID: lith.GenerateID,
+		generateID: generateID,
 		safe:       safe,
 		db:         db,
 	}
@@ -126,11 +132,11 @@ type Store struct {
 	generateID func() string
 }
 
-var _ lith.Store = (*Store)(nil)
+var _ store.Store = (*Store)(nil)
 
 // Session returns a new session that process all operations within a
 // translation.
-func (s *Store) Session(ctx context.Context) (lith.StoreSession, error) {
+func (s *Store) Session(ctx context.Context) (store.Session, error) {
 	c, err := s.db.Conn(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("acquire db connection: %w", err)
@@ -141,7 +147,7 @@ func (s *Store) Session(ctx context.Context) (lith.StoreSession, error) {
 		return nil, fmt.Errorf("new savepoint: %w", err)
 	}
 
-	session := &StoreSession{
+	session := &Session{
 		now:        s.now,
 		generateID: s.generateID,
 		safe:       s.safe,
@@ -155,7 +161,7 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
-type StoreSession struct {
+type Session struct {
 	now        func() time.Time
 	generateID func() string
 	safe       secret.Safe
@@ -168,27 +174,27 @@ type StoreSession struct {
 	}
 }
 
-func (s *StoreSession) Session(ctx context.Context) (lith.StoreSession, error) {
+func (s *Session) Session(ctx context.Context) (store.Session, error) {
 	sp, err := newSavepoint(s.dbc, false)
 	if err != nil {
 		return nil, fmt.Errorf("new savepoint: %w", err)
 	}
 
-	session := &StoreSession{
+	session := &Session{
 		sp:  sp,
 		dbc: s.dbc,
 	}
 	return session, nil
 }
 
-func (s *StoreSession) CreateAccount(ctx context.Context, email, password string) (*lith.Account, error) {
+func (s *Session) CreateAccount(ctx context.Context, email, password string) (*store.Account, error) {
 	passhash, err := bcrypt.GenerateFromPassword([]byte(password), passwordHashCost)
 	if err != nil {
 		return nil, fmt.Errorf("hash password: %w", err)
 	}
 	now := s.now()
-	a := &lith.Account{
-		AccountID:  lith.GenerateID(),
+	a := &store.Account{
+		AccountID:  s.generateID(),
 		Email:      lith.NormalizeEmail(email),
 		CreatedAt:  now.UTC(),
 		ModifiedAt: now.UTC(),
@@ -210,7 +216,7 @@ func (s *StoreSession) CreateAccount(ctx context.Context, email, password string
 
 const passwordHashCost = bcrypt.DefaultCost + 2
 
-func (s *StoreSession) UpdateAccountPassword(ctx context.Context, accountID string, password string) error {
+func (s *Session) UpdateAccountPassword(ctx context.Context, accountID string, password string) error {
 	passhash, err := bcrypt.GenerateFromPassword([]byte(password), passwordHashCost)
 	if err != nil {
 		return fmt.Errorf("hash password: %w", err)
@@ -231,21 +237,21 @@ func (s *StoreSession) UpdateAccountPassword(ctx context.Context, accountID stri
 	return nil
 }
 
-func (s *StoreSession) IsAccountPassword(ctx context.Context, accountID, password string) error {
+func (s *Session) IsAccountPassword(ctx context.Context, accountID, password string) error {
 	var hashed []byte
 	if err := s.dbc.QueryRowContext(ctx, `SELECT password FROM accounts WHERE account_id = ? LIMIT 1`, accountID).Scan(&hashed); err != nil {
 		if err == sql.ErrNoRows {
-			return lith.ErrNotFound
+			return store.ErrNotFound
 		}
 		return fmt.Errorf("scan: %w", err)
 	}
 	if bcrypt.CompareHashAndPassword(hashed, []byte(password)) != nil {
-		return lith.ErrPassword
+		return store.ErrPassword
 	}
 	return nil
 }
 
-func (s *StoreSession) UpdateAccountTOTPSecret(ctx context.Context, accountID string, totp secret.Value) error {
+func (s *Session) UpdateAccountTOTPSecret(ctx context.Context, accountID string, totp secret.Value) error {
 	// Empty totp secret means we want to unset it.
 	if len(totp) == 0 {
 		res, err := s.dbc.ExecContext(ctx, `UPDATE accounts SET totp_secret = NULL WHERE account_id = ?`, accountID)
@@ -255,7 +261,7 @@ func (s *StoreSession) UpdateAccountTOTPSecret(ctx context.Context, accountID st
 		if n, err := res.RowsAffected(); err != nil {
 			return fmt.Errorf("rows affected: %w", err)
 		} else if n == 0 {
-			return lith.ErrNotFound
+			return store.ErrNotFound
 		}
 		return nil
 	}
@@ -271,12 +277,12 @@ func (s *StoreSession) UpdateAccountTOTPSecret(ctx context.Context, accountID st
 	if n, err := res.RowsAffected(); err != nil {
 		return fmt.Errorf("rows affected: %w", err)
 	} else if n == 0 {
-		return lith.ErrNotFound
+		return store.ErrNotFound
 	}
 	return nil
 }
 
-func (s *StoreSession) AccountTOTPSecret(ctx context.Context, accountID string) (secret.Value, error) {
+func (s *Session) AccountTOTPSecret(ctx context.Context, accountID string) (secret.Value, error) {
 	var ciphertext []byte
 	err := s.dbc.QueryRowContext(ctx, `
 			SELECT totp_secret
@@ -287,12 +293,12 @@ func (s *StoreSession) AccountTOTPSecret(ctx context.Context, accountID string) 
 		`, accountID).Scan(&ciphertext)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, lith.ErrNotFound
+			return nil, store.ErrNotFound
 		}
 		return nil, fmt.Errorf("scan: %w", err)
 	}
 	if len(ciphertext) == 0 {
-		return nil, lith.ErrNotFound
+		return nil, store.ErrNotFound
 	}
 	raw, err := s.safe.Decrypt(ciphertext)
 	if err != nil {
@@ -301,7 +307,7 @@ func (s *StoreSession) AccountTOTPSecret(ctx context.Context, accountID string) 
 	return raw, nil
 }
 
-func (s *StoreSession) UpdateAccountPermissionGroups(ctx context.Context, accountID string, permissionGroupIDs []uint64) error {
+func (s *Session) UpdateAccountPermissionGroups(ctx context.Context, accountID string, permissionGroupIDs []uint64) error {
 	if _, err := s.dbc.ExecContext(ctx, `
 		DELETE FROM account_permissiongroups WHERE account_id = ?
 	`, accountID); err != nil {
@@ -318,7 +324,7 @@ func (s *StoreSession) UpdateAccountPermissionGroups(ctx context.Context, accoun
 	return nil
 }
 
-func (s *StoreSession) AccountByID(ctx context.Context, accountID string) (*lith.Account, error) {
+func (s *Session) AccountByID(ctx context.Context, accountID string) (*store.Account, error) {
 	res := s.dbc.QueryRowContext(ctx, `
 		SELECT
 			a.email,
@@ -336,7 +342,7 @@ func (s *StoreSession) AccountByID(ctx context.Context, accountID string) (*lith
 		return nil, fmt.Errorf("select: %w", castSQLiteErr(err))
 	}
 	var (
-		acc      lith.Account
+		acc      store.Account
 		modified int64
 		created  int64
 		perms    string
@@ -353,7 +359,7 @@ func (s *StoreSession) AccountByID(ctx context.Context, accountID string) (*lith
 	return &acc, nil
 }
 
-func (s *StoreSession) AccountBySession(ctx context.Context, sessionID string) (*lith.Account, error) {
+func (s *Session) AccountBySession(ctx context.Context, sessionID string) (*store.Account, error) {
 	res := s.dbc.QueryRowContext(ctx, `
 		SELECT
 			a.account_id,
@@ -376,7 +382,7 @@ func (s *StoreSession) AccountBySession(ctx context.Context, sessionID string) (
 		return nil, fmt.Errorf("select: %w", castSQLiteErr(err))
 	}
 	var (
-		acc      lith.Account
+		acc      store.Account
 		modified int64
 		created  int64
 		perms    string
@@ -392,7 +398,7 @@ func (s *StoreSession) AccountBySession(ctx context.Context, sessionID string) (
 	return &acc, nil
 }
 
-func (s *StoreSession) AccountByEmail(ctx context.Context, email string) (*lith.Account, error) {
+func (s *Session) AccountByEmail(ctx context.Context, email string) (*store.Account, error) {
 	email = lith.NormalizeEmail(email)
 	res := s.dbc.QueryRowContext(ctx, `
 		SELECT
@@ -411,7 +417,7 @@ func (s *StoreSession) AccountByEmail(ctx context.Context, email string) (*lith.
 		return nil, fmt.Errorf("select: %w", castSQLiteErr(err))
 	}
 	var (
-		acc      lith.Account
+		acc      store.Account
 		modified int64
 		created  int64
 		perms    string
@@ -428,7 +434,7 @@ func (s *StoreSession) AccountByEmail(ctx context.Context, email string) (*lith.
 	return &acc, nil
 }
 
-func (s *StoreSession) ListAccounts(ctx context.Context, filter string, limit uint, offset uint) ([]*lith.Account, error) {
+func (s *Session) ListAccounts(ctx context.Context, filter string, limit uint, offset uint) ([]*store.Account, error) {
 	var filters []string
 	for _, s := range strings.Fields(filter) {
 		// All emails are stored lowercased (see normalizeEmail
@@ -469,9 +475,9 @@ func (s *StoreSession) ListAccounts(ctx context.Context, filter string, limit ui
 	}
 	defer rows.Close()
 
-	var accounts []*lith.Account
+	var accounts []*store.Account
 	for rows.Next() {
-		var a lith.Account
+		var a store.Account
 		var created, modified int64
 		var perms string
 		if err := rows.Scan(&a.AccountID, &a.Email, &created, &modified, &perms); err != nil {
@@ -490,7 +496,7 @@ func (s *StoreSession) ListAccounts(ctx context.Context, filter string, limit ui
 	return accounts, nil
 }
 
-func (s *StoreSession) CreateSession(ctx context.Context, accountID string, expiresIn time.Duration) (string, error) {
+func (s *Session) CreateSession(ctx context.Context, accountID string, expiresIn time.Duration) (string, error) {
 	now := s.now()
 	sessionID := s.generateID()
 	_, err := s.dbc.ExecContext(ctx, `
@@ -507,7 +513,7 @@ func (s *StoreSession) CreateSession(ctx context.Context, accountID string, expi
 	return sessionID, nil
 }
 
-func (s *StoreSession) RefreshSession(ctx context.Context, sessionID string, expiresIn time.Duration) (time.Time, error) {
+func (s *Session) RefreshSession(ctx context.Context, sessionID string, expiresIn time.Duration) (time.Time, error) {
 	now := s.now()
 
 	// To avoid writes, update session expiration time only if it is beyond
@@ -537,7 +543,7 @@ func (s *StoreSession) RefreshSession(ctx context.Context, sessionID string, exp
 	return time.Unix(expiresAt, 0), nil
 }
 
-func (s *StoreSession) DeleteSession(ctx context.Context, sessionID string) error {
+func (s *Session) DeleteSession(ctx context.Context, sessionID string) error {
 	res, err := s.dbc.ExecContext(ctx, `DELETE FROM sessions WHERE session_id = ?`, sessionID)
 	if err != nil {
 		return fmt.Errorf("delete: %w", castSQLiteErr(err))
@@ -545,12 +551,12 @@ func (s *StoreSession) DeleteSession(ctx context.Context, sessionID string) erro
 	if n, err := res.RowsAffected(); err != nil {
 		return fmt.Errorf("rows affected: %w", castSQLiteErr(err))
 	} else if n == 0 {
-		return lith.ErrNotFound
+		return store.ErrNotFound
 	}
 	return nil
 }
 
-func (s *StoreSession) DeleteAccountSessions(ctx context.Context, accountID string) error {
+func (s *Session) DeleteAccountSessions(ctx context.Context, accountID string) error {
 	_, err := s.dbc.ExecContext(ctx, `DELETE FROM sessions WHERE account_id = ?`, accountID)
 	if err != nil {
 		return fmt.Errorf("delete: %w", castSQLiteErr(err))
@@ -558,7 +564,7 @@ func (s *StoreSession) DeleteAccountSessions(ctx context.Context, accountID stri
 	return nil
 }
 
-func (s *StoreSession) CreatePermissionGroup(ctx context.Context, description string, permissions []string) (*lith.PermissionGroup, error) {
+func (s *Session) CreatePermissionGroup(ctx context.Context, description string, permissions []string) (*store.PermissionGroup, error) {
 	now := s.now()
 	res := s.dbc.QueryRowContext(ctx, `
 		INSERT INTO permissiongroups (permissions_array, description, created_at, modified_at)
@@ -576,7 +582,7 @@ func (s *StoreSession) CreatePermissionGroup(ctx context.Context, description st
 	if err := res.Scan(&pgID); err != nil {
 		return nil, fmt.Errorf("scan: %w", err)
 	}
-	pg := &lith.PermissionGroup{
+	pg := &store.PermissionGroup{
 		PermissionGroupID: pgID,
 		Permissions:       permissions,
 		Description:       description,
@@ -586,7 +592,7 @@ func (s *StoreSession) CreatePermissionGroup(ctx context.Context, description st
 	return pg, nil
 }
 
-func (s *StoreSession) UpdatePermissionGroup(ctx context.Context, permissionGroupID uint64, description string, permissions []string) error {
+func (s *Session) UpdatePermissionGroup(ctx context.Context, permissionGroupID uint64, description string, permissions []string) error {
 	now := s.now().Unix()
 	res, err := s.dbc.ExecContext(ctx, `
 			UPDATE permissiongroups SET
@@ -606,12 +612,12 @@ func (s *StoreSession) UpdatePermissionGroup(ctx context.Context, permissionGrou
 	if n, err := res.RowsAffected(); err != nil {
 		return fmt.Errorf("rows affected: %w", castSQLiteErr(err))
 	} else if n == 0 {
-		return lith.ErrNotFound
+		return store.ErrNotFound
 	}
 	return nil
 }
 
-func (s *StoreSession) PermissionGroupsByAccount(ctx context.Context, accountID string) ([]*lith.PermissionGroup, error) {
+func (s *Session) PermissionGroupsByAccount(ctx context.Context, accountID string) ([]*store.PermissionGroup, error) {
 	rows, err := s.dbc.QueryContext(ctx, `
 		SELECT
 			pg.permissiongroup_id,
@@ -629,9 +635,9 @@ func (s *StoreSession) PermissionGroupsByAccount(ctx context.Context, accountID 
 	}
 	defer rows.Close()
 
-	var groups []*lith.PermissionGroup
+	var groups []*store.PermissionGroup
 	for rows.Next() {
-		var pg lith.PermissionGroup
+		var pg store.PermissionGroup
 		var (
 			permissions string
 			created     int64
@@ -650,7 +656,7 @@ func (s *StoreSession) PermissionGroupsByAccount(ctx context.Context, accountID 
 	return groups, nil
 }
 
-func (s *StoreSession) PermissionGroupByID(ctx context.Context, permissionGroupID uint64) (*lith.PermissionGroup, error) {
+func (s *Session) PermissionGroupByID(ctx context.Context, permissionGroupID uint64) (*store.PermissionGroup, error) {
 	row := s.dbc.QueryRowContext(ctx, `
 		SELECT
 			permissions_array,
@@ -664,7 +670,7 @@ func (s *StoreSession) PermissionGroupByID(ctx context.Context, permissionGroupI
 	if err := row.Err(); err != nil {
 		return nil, fmt.Errorf("select: %w", castSQLiteErr(err))
 	}
-	pg := &lith.PermissionGroup{
+	pg := &store.PermissionGroup{
 		PermissionGroupID: permissionGroupID,
 	}
 	var (
@@ -681,7 +687,7 @@ func (s *StoreSession) PermissionGroupByID(ctx context.Context, permissionGroupI
 	return pg, nil
 }
 
-func (s *StoreSession) ListPermissionGroups(ctx context.Context) ([]*lith.PermissionGroup, error) {
+func (s *Session) ListPermissionGroups(ctx context.Context) ([]*store.PermissionGroup, error) {
 	rows, err := s.dbc.QueryContext(ctx, `
 		SELECT permissiongroup_id, permissions_array, description, created_at, modified_at
 		FROM permissiongroups
@@ -692,10 +698,10 @@ func (s *StoreSession) ListPermissionGroups(ctx context.Context) ([]*lith.Permis
 	}
 	defer rows.Close()
 
-	var groups []*lith.PermissionGroup
+	var groups []*store.PermissionGroup
 	for rows.Next() {
 		var (
-			g                 lith.PermissionGroup
+			g                 store.PermissionGroup
 			created, modified int64
 			perms             string
 		)
@@ -715,7 +721,7 @@ func (s *StoreSession) ListPermissionGroups(ctx context.Context) ([]*lith.Permis
 	return groups, nil
 }
 
-func (s *StoreSession) ListChangelogs(ctx context.Context) ([]*lith.Changelog, error) {
+func (s *Session) ListChangelogs(ctx context.Context) ([]*store.Changelog, error) {
 	rows, err := s.dbc.QueryContext(ctx, `
 		SELECT c.changelog_id, c.account_id, c.created_at, a.email, c.operation, c.entity_kind, c.entity_pk
 		FROM changelogs c
@@ -727,10 +733,10 @@ func (s *StoreSession) ListChangelogs(ctx context.Context) ([]*lith.Changelog, e
 	}
 	defer rows.Close()
 
-	var changelogs []*lith.Changelog
+	var changelogs []*store.Changelog
 	for rows.Next() {
 		var (
-			c       lith.Changelog
+			c       store.Changelog
 			created int64
 		)
 		if err := rows.Scan(&c.ChangelogID, &c.AccountID, &created, &c.AccountEmail, &c.Operation, &c.EntityKind, &c.EntityPk); err != nil {
@@ -745,7 +751,7 @@ func (s *StoreSession) ListChangelogs(ctx context.Context) ([]*lith.Changelog, e
 	return changelogs, nil
 }
 
-func (s *StoreSession) AddChangelog(ctx context.Context, authentitcatedAs, operation, entityKind, entityPk string) error {
+func (s *Session) AddChangelog(ctx context.Context, authentitcatedAs, operation, entityKind, entityPk string) error {
 	_, err := s.dbc.ExecContext(ctx, `
 		INSERT INTO changelogs (account_id, operation, entity_kind, entity_pk, created_at)
 		VALUES (?, ?, ?, ?, ?)
@@ -756,7 +762,7 @@ func (s *StoreSession) AddChangelog(ctx context.Context, authentitcatedAs, opera
 	return nil
 }
 
-func (s *StoreSession) CreateEphemeralToken(ctx context.Context, action string, expireIn time.Duration, payload interface{}) (string, error) {
+func (s *Session) CreateEphemeralToken(ctx context.Context, action string, expireIn time.Duration, payload interface{}) (string, error) {
 	serializedPayload, err := json.Marshal(payload)
 	if err != nil {
 		return "", fmt.Errorf("serialize payload: %w", err)
@@ -778,13 +784,13 @@ func (s *StoreSession) CreateEphemeralToken(ctx context.Context, action string, 
 	case err == nil:
 		return tokenID, nil
 	case errors.Is(err, nil):
-		return "", fmt.Errorf("invalid account: %w", lith.ErrConflict)
+		return "", fmt.Errorf("invalid account: %w", store.ErrConflict)
 	default:
 		return "", fmt.Errorf("insert: %w", castSQLiteErr(err))
 	}
 }
 
-func (s *StoreSession) EphemeralToken(ctx context.Context, action string, tokenID string, payloadDest interface{}) error {
+func (s *Session) EphemeralToken(ctx context.Context, action string, tokenID string, payloadDest interface{}) error {
 	now := s.now()
 	row := s.dbc.QueryRowContext(ctx, `
 		SELECT payload
@@ -805,7 +811,7 @@ func (s *StoreSession) EphemeralToken(ctx context.Context, action string, tokenI
 	return nil
 }
 
-func (s *StoreSession) DeleteEphemeralToken(ctx context.Context, tokenID string) error {
+func (s *Session) DeleteEphemeralToken(ctx context.Context, tokenID string) error {
 	// Expiration time does not matter.
 	res, err := s.dbc.ExecContext(ctx, `DELETE FROM ephemeraltokens WHERE token_id = ?`, tokenID)
 	if err != nil {
@@ -814,14 +820,14 @@ func (s *StoreSession) DeleteEphemeralToken(ctx context.Context, tokenID string)
 	if n, err := res.RowsAffected(); err != nil {
 		return fmt.Errorf("rows affected: %w", castSQLiteErr(err))
 	} else if n == 0 {
-		return lith.ErrNotFound
+		return store.ErrNotFound
 	}
 	return nil
 }
 
 // Vacuum removes stale data that is no longer requred. For example expired
 // ephemeral tokens or sessions.
-func (s *StoreSession) Vacuum(ctx context.Context) error {
+func (s *Session) Vacuum(ctx context.Context) error {
 	now := s.now()
 	if _, err := s.dbc.ExecContext(ctx, `DELETE FROM ephemeraltokens WHERE expires_at <= ?`, now.Unix()); err != nil {
 		return fmt.Errorf("delete ephemeraltokens: %w", castSQLiteErr(err))
@@ -843,11 +849,11 @@ func (s *StoreSession) Vacuum(ctx context.Context) error {
 	return nil
 }
 
-func (stx *StoreSession) Rollback() {
+func (stx *Session) Rollback() {
 	_ = stx.sp.Rollback()
 }
 
-func (stx *StoreSession) Commit() error {
+func (stx *Session) Commit() error {
 	return stx.sp.Commit()
 }
 
@@ -907,23 +913,23 @@ func castSQLiteErr(err error) error {
 	}
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return lith.ErrNotFound
+		return store.ErrNotFound
 	}
 
 	// http://www.sqlite.org/c3ref/c_abort.html
 	if err, ok := err.(sqlite3.Error); ok {
 		switch err.Code {
 		case 12:
-			return lith.ErrNotFound
+			return store.ErrNotFound
 		case 19:
-			return fmt.Errorf("%w: %s", lith.ErrConflict, err)
+			return fmt.Errorf("%w: %s", store.ErrConflict, err)
 		}
 	}
 
 	return err
 }
 
-func addPermissionGroups(ctx context.Context, session StoreSession, accountID string, groupIDs []uint64) error {
+func addPermissionGroups(ctx context.Context, session Session, accountID string, groupIDs []uint64) error {
 	groups, err := session.PermissionGroupsByAccount(ctx, accountID)
 	if err != nil {
 		return fmt.Errorf("account permission groups: %w", err)

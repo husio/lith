@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/husio/lith/app/lith"
+	"github.com/husio/lith/app/lith/store"
 	"github.com/husio/lith/pkg/alert"
 
 	"github.com/BurntSushi/toml"
@@ -44,7 +45,7 @@ func main() {
 			RequireTwoFactorAuth: true,
 			MinPasswordLength:    12,
 			RegisteredAccountPermissionGroups: []uint64{
-				lith.PermissionGroupActiveAccount,
+				store.PermissionGroupActiveAccount,
 			},
 			AllowRegisterEmail: ".*",
 		},
@@ -56,7 +57,7 @@ func main() {
 			SessionMaxAge:        5 * 24 * time.Hour,
 			MinPasswordLength:    12,
 			RegisteredAccountPermissionGroups: []uint64{
-				lith.PermissionGroupActiveAccount,
+				store.PermissionGroupActiveAccount,
 			},
 			AllowRegisterAccount: true,
 			AllowPasswordReset:   true,

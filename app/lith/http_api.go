@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/husio/lith/app/lith/store"
 	"github.com/husio/lith/pkg/alert"
 	"github.com/husio/lith/pkg/cache"
 	"github.com/husio/lith/pkg/eventbus"
@@ -25,7 +26,7 @@ import (
 
 func APIHandler(
 	conf APIConfiguration,
-	store Store,
+	store store.Store,
 	cache cache.Store,
 	events eventbus.Sink,
 	queue taskqueue.Scheduler,
@@ -79,7 +80,7 @@ func (h apiDefaultHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type apiPasswordResetInit struct {
-	store Store
+	store store.Store
 	conf  APIConfiguration
 	queue taskqueue.Scheduler
 }
@@ -117,7 +118,7 @@ func (h apiPasswordResetInit) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	switch {
 	case err == nil:
 		// All good.
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		// Account not found, but because we don't want to give up what
 		// accounts are registered, a successful message is returned.
 		w.WriteHeader(http.StatusAccepted)
@@ -170,7 +171,7 @@ func (h apiPasswordResetInit) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 }
 
 type apiPasswordResetComplete struct {
-	store Store
+	store store.Store
 	conf  APIConfiguration
 }
 
@@ -214,7 +215,7 @@ func (h apiPasswordResetComplete) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	switch err := session.EphemeralToken(ctx, "api-reset-password", input.Token, &resetPasswordContext); {
 	case err == nil:
 		// All good.
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		web.WriteJSONErr(w, http.StatusUnauthorized, "Invalid token.")
 		return
 	default:
@@ -260,7 +261,7 @@ func (h apiPasswordResetComplete) ServeHTTP(w http.ResponseWriter, r *http.Reque
 }
 
 type apiAccountCreateInit struct {
-	store Store
+	store store.Store
 	conf  APIConfiguration
 	queue taskqueue.Scheduler
 }
@@ -301,7 +302,7 @@ func (h apiAccountCreateInit) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	case err == nil:
 		web.WriteJSONErr(w, http.StatusConflict, "Account already registered.")
 		return
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		// All good.
 	default:
 		alert.EmitErr(ctx, err, "Cannot get an account by email.")
@@ -349,7 +350,7 @@ func (h apiAccountCreateInit) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 }
 
 type apiAccountCreateComplete struct {
-	store  Store
+	store  store.Store
 	conf   APIConfiguration
 	events eventbus.Sink
 }
@@ -398,7 +399,7 @@ func (h apiAccountCreateComplete) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	switch err := session.EphemeralToken(ctx, "api-register-account", input.Token, &registerAccountContext); {
 	case err == nil:
 		// All good.
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		web.WriteJSONErr(w, http.StatusUnauthorized, "Invalid token.")
 		return
 	default:
@@ -416,7 +417,7 @@ func (h apiAccountCreateComplete) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	switch {
 	case err == nil:
 		// All good.
-	case errors.Is(err, ErrConflict):
+	case errors.Is(err, store.ErrConflict):
 		web.WriteJSONErr(w, http.StatusConflict, "Account already registered.")
 		return
 	default:
@@ -452,7 +453,7 @@ func (h apiAccountCreateComplete) ServeHTTP(w http.ResponseWriter, r *http.Reque
 }
 
 type apiSessionIntrospect struct {
-	store Store
+	store store.Store
 	conf  APIConfiguration
 }
 
@@ -478,7 +479,7 @@ func (h apiSessionIntrospect) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
-func refreshAuthSession(ctx context.Context, store Store, sessionID string, refresh time.Duration) (time.Time, error) {
+func refreshAuthSession(ctx context.Context, store store.Store, sessionID string, refresh time.Duration) (time.Time, error) {
 	session, err := store.Session(ctx)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("create database session: %w", err)
@@ -494,7 +495,7 @@ func refreshAuthSession(ctx context.Context, store Store, sessionID string, refr
 }
 
 type apiSessionDelete struct {
-	store Store
+	store store.Store
 	conf  APIConfiguration
 }
 
@@ -546,7 +547,7 @@ func (h apiSessionDelete) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		switch err := db.DeleteSession(ctx, sessionID); {
 		case err == nil:
 			// All good.
-		case errors.Is(err, ErrNotFound):
+		case errors.Is(err, store.ErrNotFound):
 			// This is a rare case when authentication was successful,
 			// validated by the middleware, but the session no longer
 			// exists in the database. Since the session is gone, operation
@@ -570,7 +571,7 @@ func (h apiSessionDelete) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type apiSessionCreate struct {
-	store  Store
+	store  store.Store
 	conf   APIConfiguration
 	events eventbus.Sink
 	cache  cache.Store
@@ -621,7 +622,7 @@ func (h apiSessionCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case err == nil:
 		// All good.
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		web.WriteJSONErr(w, http.StatusBadRequest, "Invalid login and/or password.")
 		return
 	default:
@@ -633,7 +634,7 @@ func (h apiSessionCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch err := session.IsAccountPassword(ctx, account.AccountID, input.Password); {
 	case err == nil:
 		// All good.
-	case errors.Is(err, ErrPassword):
+	case errors.Is(err, store.ErrPassword):
 		web.WriteJSONErr(w, http.StatusBadRequest, "Invalid login and/or password.")
 		return
 	default:
@@ -669,7 +670,7 @@ func (h apiSessionCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			web.WriteJSONStdErr(w, http.StatusInternalServerError)
 			return
 		}
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		if h.conf.RequireTwoFactorAuth {
 			web.WriteJSONErr(w, http.StatusUnauthorized, "Two-Factor is required but not enabled for this account.")
 			return
@@ -715,7 +716,7 @@ func (h apiSessionCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type apiTwoFactorStatus struct {
-	store Store
+	store store.Store
 	conf  APIConfiguration
 }
 
@@ -742,7 +743,7 @@ func (h apiTwoFactorStatus) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch _, err := session.AccountTOTPSecret(ctx, account.AccountID); {
 	case err == nil:
 		web.WriteJSON(w, http.StatusOK, response{Enabled: true})
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		web.WriteJSON(w, http.StatusOK, response{Enabled: false})
 	default:
 		alert.EmitErr(ctx, err, "Cannot get account TOTP secret.",
@@ -753,7 +754,7 @@ func (h apiTwoFactorStatus) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type apiTwoFactorEnable struct {
-	store Store
+	store store.Store
 	conf  APIConfiguration
 	cache cache.Store
 }
@@ -845,7 +846,7 @@ func (h apiTwoFactorEnable) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case err == nil:
 			// All good.
-		case errors.Is(err, ErrNotFound):
+		case errors.Is(err, store.ErrNotFound):
 			web.WriteJSONErr(w, http.StatusUnauthorized, "Invalid login and/or password.")
 			return
 		default:
@@ -857,7 +858,7 @@ func (h apiTwoFactorEnable) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		switch err := session.IsAccountPassword(ctx, account.AccountID, input.Password); {
 		case err == nil:
 			// All good.
-		case errors.Is(err, ErrPassword):
+		case errors.Is(err, store.ErrPassword):
 			web.WriteJSONErr(w, http.StatusUnauthorized, "Invalid login and/or password.")
 			return
 		default:
@@ -887,7 +888,7 @@ func (h apiTwoFactorEnable) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case err == nil:
 		web.WriteJSONErr(w, http.StatusConflict, "Two-factor enabled.")
 		return
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		// All good.
 	default:
 		alert.EmitErr(ctx, err, "Cannot get account TOTP secret.",

@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/husio/lith/app/lith"
 	"github.com/husio/lith/app/lith/store/sqlite"
@@ -47,8 +48,11 @@ func cmdUserAdd(ctx context.Context, conf lith.Configuration, args []string) err
 		groups = append(groups, id)
 	}
 
+	now := func() time.Time {
+		return time.Now().UTC().Truncate(time.Second)
+	}
 	safe := secret.AESSafe(conf.Secret)
-	db, err := sqlite.OpenStore(conf.Database, safe)
+	db, err := sqlite.OpenStore(conf.Database, safe, now, lith.GenerateID)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}

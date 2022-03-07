@@ -7,6 +7,8 @@ import (
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/husio/lith/app/lith/store"
 )
 
 func RunTestStoreImplementation(
@@ -14,7 +16,7 @@ func RunTestStoreImplementation(
 	newStore func(
 		now func() time.Time,
 		newID func() string,
-	) Store,
+	) store.Store,
 ) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -42,7 +44,7 @@ func RunTestStoreImplementation(
 		t.Cleanup(func() { generateID = original })
 	}
 
-	newSession := func(t *testing.T) StoreSession {
+	newSession := func(t *testing.T) store.Session {
 		t.Helper()
 		store := newStore(
 			func() time.Time { return now() },
@@ -82,8 +84,8 @@ func RunTestStoreImplementation(
 		if !reflect.DeepEqual(acc, acc2) {
 			t.Fatalf("data corrupted\nwant %+v\n got %+v", acc, acc2)
 		}
-		if _, err := db.AccountByID(ctx, "unknown-user-id"); !errors.Is(err, ErrNotFound) {
-			t.Fatalf("want ErrNotFound, got %+v", err)
+		if _, err := db.AccountByID(ctx, "unknown-user-id"); !errors.Is(err, store.ErrNotFound) {
+			t.Fatalf("want store.ErrNotFound, got %+v", err)
 		}
 
 		acc3, err := db.AccountByEmail(ctx, "testjoe@example.com")
@@ -93,8 +95,8 @@ func RunTestStoreImplementation(
 		if !reflect.DeepEqual(acc, acc3) {
 			t.Fatalf("data corrupted\nwant %+v\n got %+v", acc, acc3)
 		}
-		if _, err := db.AccountByEmail(ctx, "unknown-user-login@foo.com"); !errors.Is(err, ErrNotFound) {
-			t.Fatalf("want ErrNotFound, got %+v", err)
+		if _, err := db.AccountByEmail(ctx, "unknown-user-login@foo.com"); !errors.Is(err, store.ErrNotFound) {
+			t.Fatalf("want store.ErrNotFound, got %+v", err)
 		}
 	})
 
@@ -110,8 +112,8 @@ func RunTestStoreImplementation(
 			t.Fatalf("account ID should be %q, got %q", want, got)
 		}
 
-		if err := db.DeleteSession(ctx, "does-not-exist-id"); !errors.Is(err, ErrNotFound) {
-			t.Fatalf("when deleting a non-existing session, want ErrNotFound, got %+v", err)
+		if err := db.DeleteSession(ctx, "does-not-exist-id"); !errors.Is(err, store.ErrNotFound) {
+			t.Fatalf("when deleting a non-existing session, want store.ErrNotFound, got %+v", err)
 		}
 
 		s1, err := db.CreateSession(ctx, acc.AccountID, time.Minute)
@@ -129,8 +131,8 @@ func RunTestStoreImplementation(
 		if err := db.DeleteAccountSessions(ctx, acc.AccountID); err != nil {
 			t.Fatalf("when deleting all account authentication session, want no error, got %+v", err)
 		}
-		if err := db.DeleteSession(ctx, s2); !errors.Is(err, ErrNotFound) {
-			t.Fatalf("when deleting a non-existing session, want ErrNotFound, got %+v", err)
+		if err := db.DeleteSession(ctx, s2); !errors.Is(err, store.ErrNotFound) {
+			t.Fatalf("when deleting a non-existing session, want store.ErrNotFound, got %+v", err)
 		}
 	})
 
@@ -148,7 +150,7 @@ func RunTestStoreImplementation(
 			t.Fatalf("cannot create permission group: %s", err)
 		}
 
-		want := &PermissionGroup{
+		want := &store.PermissionGroup{
 			PermissionGroupID: pg.PermissionGroupID,
 			Permissions:       adminPermissions,
 			Description:       "admin",
@@ -172,7 +174,7 @@ func RunTestStoreImplementation(
 		if err != nil {
 			t.Fatalf("cannot get %d permission group: %s", pg.PermissionGroupID, err)
 		}
-		want = &PermissionGroup{
+		want = &store.PermissionGroup{
 			PermissionGroupID: pg.PermissionGroupID,
 			Permissions:       userPermissions,
 			Description:       "user",
@@ -188,11 +190,11 @@ func RunTestStoreImplementation(
 		t.Skip("todo")
 	})
 
-	t.Run("updating non existing permission group returns ErrNotFound", func(t *testing.T) {
+	t.Run("updating non existing permission group returns store.ErrNotFound", func(t *testing.T) {
 		db := newSession(t)
 		err := db.UpdatePermissionGroup(ctx, 12412, "description", []string{"foo"})
-		if !errors.Is(err, ErrNotFound) {
-			t.Fatalf("want ErrNotFound, got %#v", err)
+		if !errors.Is(err, store.ErrNotFound) {
+			t.Fatalf("want store.ErrNotFound, got %#v", err)
 		}
 	})
 
@@ -215,7 +217,7 @@ func RunTestStoreImplementation(
 		}
 
 		withCurrentTime(t, now.Add(100*time.Hour))
-		if acc3, err := db.AccountBySession(ctx, sessionID); !errors.Is(err, ErrNotFound) {
+		if acc3, err := db.AccountBySession(ctx, sessionID); !errors.Is(err, store.ErrNotFound) {
 			t.Fatalf("session must be expired, got %+v, %v", acc3, err)
 		}
 	})
@@ -235,13 +237,13 @@ func RunTestStoreImplementation(
 		}
 
 		var payload string
-		if err := db.EphemeralToken(ctx, "jump", token, &payload); !errors.Is(err, ErrNotFound) {
-			t.Fatalf("when using wrong action, ErrNotFound is expected, got %+v, %v", err, payload)
+		if err := db.EphemeralToken(ctx, "jump", token, &payload); !errors.Is(err, store.ErrNotFound) {
+			t.Fatalf("when using wrong action, store.ErrNotFound is expected, got %+v, %v", err, payload)
 		}
 
 		withCurrentTime(t, now.Add(time.Hour+time.Second))
-		if err := db.EphemeralToken(ctx, "say-hello", token, payload); !errors.Is(err, ErrNotFound) {
-			t.Fatalf("when using expired token, ErrNotFound is expected, got %+v, %v", err, payload)
+		if err := db.EphemeralToken(ctx, "say-hello", token, payload); !errors.Is(err, store.ErrNotFound) {
+			t.Fatalf("when using expired token, store.ErrNotFound is expected, got %+v, %v", err, payload)
 		}
 
 		withCurrentTime(t, now)
@@ -255,8 +257,8 @@ func RunTestStoreImplementation(
 		if err := db.DeleteEphemeralToken(ctx, token); err != nil {
 			t.Fatalf("cannot delete ephemeral token: %v", err)
 		}
-		if err := db.DeleteEphemeralToken(ctx, token); !errors.Is(err, ErrNotFound) {
-			t.Fatalf("deleting a non existing token must return ErrNotFound, got %+v", err)
+		if err := db.DeleteEphemeralToken(ctx, token); !errors.Is(err, store.ErrNotFound) {
+			t.Fatalf("deleting a non existing token must return store.ErrNotFound, got %+v", err)
 		}
 	})
 
@@ -359,7 +361,7 @@ func RunTestStoreImplementation(
 	})
 }
 
-func insertAccount(t testing.TB, s StoreSession, email, password, totpSecret string, permissionGroups []uint64) string {
+func insertAccount(t testing.TB, s store.Session, email, password, totpSecret string, permissionGroups []uint64) string {
 	t.Helper()
 	ctx := context.Background()
 
@@ -376,7 +378,7 @@ func insertAccount(t testing.TB, s StoreSession, email, password, totpSecret str
 	return a.AccountID
 }
 
-func atomic(t testing.TB, s Store, fn func(s StoreSession)) {
+func atomic(t testing.TB, s store.Store, fn func(s store.Session)) {
 	session, err := s.Session(context.Background())
 	if err != nil {
 		t.Fatalf("create store session: %s", err)

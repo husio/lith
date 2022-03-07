@@ -6,13 +6,14 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/husio/lith/app/lith/store"
 	"github.com/husio/lith/pkg/alert"
 )
 
-// CurrentAccount returns the account bound to current request.
+// Currentstore.Account returns the account bound to current request.
 //
 // This function requires AuthMiddleware.
-func CurrentAccount(ctx context.Context) (*Account, bool) {
+func CurrentAccount(ctx context.Context) (*store.Account, bool) {
 	info, ok := ctx.Value(authInfoContextKey).(authinfo)
 	if ok {
 		return info.account, true
@@ -31,7 +32,7 @@ func CurrentSessionID(ctx context.Context) (string, bool) {
 	return "", false
 }
 
-func withAuthInfo(ctx context.Context, sessionID string, a *Account) context.Context {
+func withAuthInfo(ctx context.Context, sessionID string, a *store.Account) context.Context {
 	return context.WithValue(ctx, authInfoContextKey, authinfo{
 		account:   a,
 		sessionID: sessionID,
@@ -48,8 +49,8 @@ func withAuthInfo(ctx context.Context, sessionID string, a *Account) context.Con
 // Be catious when using a lookup function that checks cookie, because cookie
 // authentication requires extra care (i.e. use CSRF protection).
 //
-// This middleware is required by the CurrentAccount function.
-func AuthMiddleware(store Store, lookups ...LookupFunc) func(http.Handler) http.Handler {
+// This middleware is required by the Currentstore.Account function.
+func AuthMiddleware(store store.Store, lookups ...LookupFunc) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return &authMiddleware{
 			lookups: lookups,
@@ -63,7 +64,7 @@ type LookupFunc func(*http.Request) string
 
 type authMiddleware struct {
 	lookups []LookupFunc
-	store   Store
+	store   store.Store
 	next    http.Handler
 }
 
@@ -84,11 +85,11 @@ func (m *authMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	m.next.ServeHTTP(w, r)
 }
 
-func accountBySessionID(ctx context.Context, store Store, sessionID string) *Account {
+func accountBySessionID(ctx context.Context, s store.Store, sessionID string) *store.Account {
 	if sessionID == "" {
 		return nil
 	}
-	session, err := store.Session(ctx)
+	session, err := s.Session(ctx)
 	if err != nil {
 		alert.EmitErr(ctx, err, "Cannot create store session.")
 		return nil
@@ -98,7 +99,7 @@ func accountBySessionID(ctx context.Context, store Store, sessionID string) *Acc
 	switch account, err := session.AccountBySession(ctx, sessionID); {
 	case err == nil:
 		return account
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		return nil
 	default:
 		alert.EmitErr(ctx, err, "Cannot get account by session ID.",
@@ -141,6 +142,6 @@ const (
 )
 
 type authinfo struct {
-	account   *Account
+	account   *store.Account
 	sessionID string
 }

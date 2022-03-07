@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/husio/lith/app/lith/store"
 	"github.com/husio/lith/pkg/alert"
 	"github.com/husio/lith/pkg/cache"
 	"github.com/husio/lith/pkg/eventbus"
@@ -35,7 +36,7 @@ import (
 // endpoints.
 func AdminHandler(
 	conf AdminPanelConfiguration,
-	store Store,
+	store store.Store,
 	cache cache.Store,
 	safe secret.Safe,
 	secret []byte,
@@ -99,7 +100,7 @@ func (h adminDefaultHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type adminIndex struct {
-	store Store
+	store store.Store
 	conf  AdminPanelConfiguration
 }
 
@@ -110,7 +111,7 @@ func (h adminIndex) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	tmpl.Render(w, http.StatusOK, "admin_index.html", struct {
 		adminTemplateCore
-		CurrentAccount *Account
+		CurrentAccount *store.Account
 	}{
 		adminTemplateCore: newAdminTemplateCore(h.conf, "Index"),
 		CurrentAccount:    account,
@@ -118,7 +119,7 @@ func (h adminIndex) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type adminLogin struct {
-	store  Store
+	store  store.Store
 	events eventbus.Sink
 	conf   AdminPanelConfiguration
 }
@@ -130,7 +131,7 @@ func (h adminLogin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Next           string
 		CSRFField      template.HTML
 		ErrorMsg       string
-		CurrentAccount *Account
+		CurrentAccount *store.Account
 	}{
 		adminTemplateCore: newAdminTemplateCore(h.conf, "Login"),
 		CSRFField:         csrf.TemplateField(r),
@@ -180,7 +181,7 @@ func (h adminLogin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case err == nil:
 		// All good.
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		templateContext.ErrorMsg = "Invalid email and/or password."
 		tmpl.Render(w, http.StatusBadRequest, "admin_login.html", templateContext)
 		return
@@ -193,7 +194,7 @@ func (h adminLogin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch err := session.IsAccountPassword(ctx, account.AccountID, password); {
 	case err == nil:
 		// All good.
-	case errors.Is(err, ErrPassword):
+	case errors.Is(err, store.ErrPassword):
 		templateContext.ErrorMsg = "Invalid email and/or password."
 		tmpl.Render(w, http.StatusBadRequest, "admin_login.html", templateContext)
 		return
@@ -248,7 +249,7 @@ func (h adminLogin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		})
 		http.Redirect(w, r, h.conf.PathPrefix+"login/verify/", http.StatusSeeOther)
 		return
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		// Two factor authentication is not configured for this account.
 		if h.conf.RequireTwoFactorAuth {
 			// Grant a limited session token and redirect to two
@@ -326,7 +327,7 @@ func (h adminLogin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type adminLoginVerify struct {
-	store  Store
+	store  store.Store
 	cache  cache.Store
 	events eventbus.Sink
 	conf   AdminPanelConfiguration
@@ -357,7 +358,7 @@ func (h adminLoginVerify) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch err := session.EphemeralToken(ctx, "verify-admin-2fa", cookie.Value, &verify2faContext); {
 	case err == nil:
 		// All good.
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		http.Redirect(w, r, h.conf.PathPrefix+"login/", http.StatusSeeOther)
 		return
 	default:
@@ -463,7 +464,7 @@ func (h adminLoginVerify) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type adminTwoFactorAuthEnable struct {
-	store  Store
+	store  store.Store
 	cache  cache.Store
 	safe   secret.Safe
 	events eventbus.Sink
@@ -498,7 +499,7 @@ func (h adminTwoFactorAuthEnable) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	case err == nil:
 		// All good.
 		ephemeralNext = string(next)
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		here := url.QueryEscape(r.URL.String())
 		http.Redirect(w, r, h.conf.PathPrefix+"login/?next="+here, http.StatusTemporaryRedirect)
 		return
@@ -521,7 +522,7 @@ func (h adminTwoFactorAuthEnable) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	case err == nil:
 		renderAdminErr(w, h.conf, http.StatusBadRequest, trans.T("Two Factor Authentication already enabled."))
 		return
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		// All good.
 	default:
 		alert.EmitErr(ctx, err, "Cannot get account TOTP secret.",
@@ -533,7 +534,7 @@ func (h adminTwoFactorAuthEnable) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	templateContext := struct {
 		adminTemplateCore
 		ErrorMsg             string
-		CurrentAccount       *Account
+		CurrentAccount       *store.Account
 		EphemeralSecretToken string
 		QRCodeBase64         string
 		CSRFField            template.HTML
@@ -671,7 +672,7 @@ func (h adminTwoFactorAuthEnable) ServeHTTP(w http.ResponseWriter, r *http.Reque
 }
 
 type adminLogout struct {
-	store Store
+	store store.Store
 	conf  AdminPanelConfiguration
 }
 
@@ -712,7 +713,7 @@ func (h adminLogout) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type adminAccountsList struct {
-	store Store
+	store store.Store
 	conf  AdminPanelConfiguration
 }
 
@@ -727,8 +728,8 @@ func (h adminAccountsList) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	templateContext := struct {
 		adminTemplateCore
-		CurrentAccount *Account
-		Accounts       []*Account
+		CurrentAccount *store.Account
+		Accounts       []*store.Account
 		Query          string
 
 		Pagination struct {
@@ -783,7 +784,7 @@ func (h adminAccountsList) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type adminAccountCreate struct {
-	store  Store
+	store  store.Store
 	flash  flashmsg
 	events eventbus.Sink
 	conf   AdminPanelConfiguration
@@ -797,7 +798,7 @@ func (h adminAccountCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	templateContext := struct {
 		adminTemplateCore
-		CurrentAccount *Account
+		CurrentAccount *store.Account
 		Email          string
 		Errors         validation.Errors
 		CSRFField      template.HTML
@@ -845,7 +846,7 @@ func (h adminAccountCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case err == nil:
 		// All good.
-	case errors.Is(err, ErrConflict):
+	case errors.Is(err, store.ErrConflict):
 		templateContext.Errors.Add("email", trans.T("Email address already in use."))
 		tmpl.Render(w, http.StatusBadRequest, "admin_account_create.html", templateContext)
 		return
@@ -880,7 +881,7 @@ func (h adminAccountCreate) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type adminAccountDetails struct {
-	store Store
+	store store.Store
 	conf  AdminPanelConfiguration
 	flash flashmsg
 }
@@ -892,14 +893,14 @@ func (h adminAccountDetails) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type ExtendedPermissionGroup struct {
-		*PermissionGroup
+		*store.PermissionGroup
 		AssignedToAccount bool
 	}
 
 	templateContext := struct {
 		adminTemplateCore
-		CurrentAccount      *Account
-		Account             *Account
+		CurrentAccount      *store.Account
+		Account             *store.Account
 		AccountTwoFactor    bool
 		AllowPasswordChange bool
 		PermissionGroups    []*ExtendedPermissionGroup
@@ -925,7 +926,7 @@ func (h adminAccountDetails) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case err == nil:
 		templateContext.Account = account
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		renderAdminErr(w, h.conf, http.StatusNotFound, "Account does not exist.")
 		return
 	default:
@@ -938,7 +939,7 @@ func (h adminAccountDetails) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch _, err := session.AccountTOTPSecret(ctx, account.AccountID); {
 	case err == nil:
 		templateContext.AccountTwoFactor = true
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		templateContext.AccountTwoFactor = false
 	default:
 		alert.EmitErr(ctx, err, "Cannot get account TOTP secret.",
@@ -1017,7 +1018,7 @@ func (h adminAccountDetails) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type adminAccountPassword struct {
-	store Store
+	store store.Store
 	conf  AdminPanelConfiguration
 	flash flashmsg
 }
@@ -1045,7 +1046,7 @@ func (h adminAccountPassword) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 
 	templateContext := struct {
 		adminTemplateCore
-		Account   *Account
+		Account   *store.Account
 		Errors    validation.Errors
 		CSRFField template.HTML
 	}{
@@ -1057,7 +1058,7 @@ func (h adminAccountPassword) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	switch {
 	case err == nil:
 		templateContext.Account = account
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		renderAdminErr(w, h.conf, http.StatusNotFound, "Account does not exist.")
 		return
 	default:
@@ -1117,7 +1118,7 @@ func (h adminAccountPassword) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 }
 
 type adminAccountSessions struct {
-	store Store
+	store store.Store
 	conf  AdminPanelConfiguration
 	flash flashmsg
 }
@@ -1161,7 +1162,7 @@ func (h adminAccountSessions) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 }
 
 type adminPermissionGroupsList struct {
-	store Store
+	store store.Store
 	flash flashmsg
 	conf  AdminPanelConfiguration
 }
@@ -1174,8 +1175,8 @@ func (h adminPermissionGroupsList) ServeHTTP(w http.ResponseWriter, r *http.Requ
 
 	templateContext := struct {
 		adminTemplateCore
-		CurrentAccount   *Account
-		PermissionGroups []*PermissionGroup
+		CurrentAccount   *store.Account
+		PermissionGroups []*store.PermissionGroup
 		FlashMsg         *FlashMsg
 	}{
 		adminTemplateCore: newAdminTemplateCore(h.conf, "Permission Groups"),
@@ -1203,7 +1204,7 @@ func (h adminPermissionGroupsList) ServeHTTP(w http.ResponseWriter, r *http.Requ
 }
 
 type adminPermissionGroupCreate struct {
-	store Store
+	store store.Store
 	flash flashmsg
 	conf  AdminPanelConfiguration
 }
@@ -1227,7 +1228,7 @@ func (h adminPermissionGroupCreate) ServeHTTP(w http.ResponseWriter, r *http.Req
 
 	templateContext := struct {
 		adminTemplateCore
-		CurrentAccount *Account
+		CurrentAccount *store.Account
 		Description    string
 		Permissions    []string
 		Errors         validation.Errors
@@ -1284,7 +1285,7 @@ func (h adminPermissionGroupCreate) ServeHTTP(w http.ResponseWriter, r *http.Req
 }
 
 type adminPermissionGroupDetails struct {
-	store Store
+	store store.Store
 	flash flashmsg
 	conf  AdminPanelConfiguration
 }
@@ -1311,7 +1312,7 @@ func (h adminPermissionGroupDetails) ServeHTTP(w http.ResponseWriter, r *http.Re
 	switch {
 	case err == nil:
 		// All good.
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		renderAdminErr(w, h.conf, http.StatusNotFound, trans.T("Permission Group does not exist."))
 		return
 	default:
@@ -1323,8 +1324,8 @@ func (h adminPermissionGroupDetails) ServeHTTP(w http.ResponseWriter, r *http.Re
 
 	templateContext := struct {
 		adminTemplateCore
-		CurrentAccount  *Account
-		PermissionGroup *PermissionGroup
+		CurrentAccount  *store.Account
+		PermissionGroup *store.PermissionGroup
 		Description     string
 		Permissions     []string
 		Errors          validation.Errors
@@ -1405,7 +1406,7 @@ func splitPermissions(s string) []string {
 }
 
 type adminChangelogsList struct {
-	store Store
+	store store.Store
 	conf  AdminPanelConfiguration
 }
 
@@ -1416,13 +1417,13 @@ func (h adminChangelogsList) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type ExtendedChangelog struct {
-		*Changelog
+		*store.Changelog
 		EntityURL string
 	}
 
 	templateContext := struct {
 		adminTemplateCore
-		CurrentAccount *Account
+		CurrentAccount *store.Account
 		Changelogs     []ExtendedChangelog
 	}{
 		adminTemplateCore: newAdminTemplateCore(h.conf, "Changelogs"),
@@ -1481,7 +1482,7 @@ func renderAdminErr(
 	})
 }
 
-func adminOrRedirect(w http.ResponseWriter, r *http.Request, conf AdminPanelConfiguration) (*Account, bool) {
+func adminOrRedirect(w http.ResponseWriter, r *http.Request, conf AdminPanelConfiguration) (*store.Account, bool) {
 	acc, ok := CurrentAccount(r.Context())
 	if !ok {
 		http.Redirect(w, r, conf.PathPrefix+"login/?next="+url.QueryEscape(r.URL.Path), http.StatusSeeOther)
@@ -1558,7 +1559,7 @@ func (c adminTemplateCore) CSS() []string {
 
 // addChangelog creates a changelog entry within given session. Since logging
 // issues are not critical, any failure is only logged.
-func addChangelog(ctx context.Context, s StoreSession, operation, entityKind string, entityPk interface{}) {
+func addChangelog(ctx context.Context, s store.Session, operation, entityKind string, entityPk interface{}) {
 	a, ok := CurrentAccount(ctx)
 	if !ok {
 		alert.EmitErr(ctx, errors.New("unauthorized"), "Cannot add changelog entry - no current user.")

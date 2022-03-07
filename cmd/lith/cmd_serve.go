@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/husio/lith/app/lith"
+	"github.com/husio/lith/app/lith/store"
 	"github.com/husio/lith/app/lith/store/sqlite"
 	"github.com/husio/lith/pkg/alert"
 	"github.com/husio/lith/pkg/cache"
@@ -33,12 +34,8 @@ func cmdServe(ctx context.Context, conf lith.Configuration, args []string) error
 func runServer(ctx context.Context, conf lith.Configuration) error {
 	cache := cache.NewLocalMemCache(conf.MaxCacheSize)
 
-	now := func() time.Time {
-		return time.Now().UTC().Truncate(time.Second)
-	}
-
 	safe := secret.AESSafe(conf.Secret)
-	store, err := sqlite.OpenStore(conf.Database, safe)
+	store, err := sqlite.OpenStore(conf.Database, safe, time.Now, lith.GenerateID)
 	if err != nil {
 		return fmt.Errorf("open sqlite store: %w", err)
 	}
@@ -109,7 +106,7 @@ func runServer(ctx context.Context, conf lith.Configuration) error {
 		registerApp(addr, conf.PublicUI.PathPrefix, lith.PublicHandler(conf.PublicUI, store, cache, safe, secret, events, bgJobQueue))
 	}
 	if addr := conf.API.ListenHTTP; addr != "" {
-		registerApp(addr, conf.API.PathPrefix, lith.APIHandler(conf.API, store, cache, events, bgJobQueue, now))
+		registerApp(addr, conf.API.PathPrefix, lith.APIHandler(conf.API, store, cache, events, bgJobQueue, time.Now))
 	}
 
 	if addr := conf.AdminPanel.ListenHTTP; addr != "" {
@@ -189,8 +186,8 @@ func listenHTTP(ctx context.Context, addr string, hn http.Handler) error {
 	return nil
 }
 
-func vacuumStore(ctx context.Context, store lith.Store) {
-	session, err := store.Session(ctx)
+func vacuumStore(ctx context.Context, s store.Store) {
+	session, err := s.Session(ctx)
 	if err != nil {
 		alert.Emit(ctx,
 			"msg", "Cannot create store session.",

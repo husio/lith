@@ -1,4 +1,4 @@
-package lith
+package lith_test
 
 import (
 	"net/http"

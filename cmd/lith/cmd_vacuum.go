@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"time"
 
 	"github.com/husio/lith/app/lith"
 	"github.com/husio/lith/app/lith/store/sqlite"
@@ -15,7 +16,7 @@ func cmdVacuum(ctx context.Context, conf lith.Configuration, args []string) erro
 		return fmt.Errorf("flag parse: %w", err)
 	}
 
-	db, err := sqlite.OpenStore(conf.Database, nil)
+	db, err := sqlite.OpenStore(conf.Database, nil, time.Now, lith.GenerateID)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}

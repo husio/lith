@@ -1,4 +1,4 @@
-package lith
+package lith_test
 
 import (
 	"bytes"
@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/husio/lith/app/lith"
+	"github.com/husio/lith/app/lith/store"
 	"github.com/husio/lith/app/lith/store/sqlite"
 	"github.com/husio/lith/pkg/alert"
 	"github.com/husio/lith/pkg/cache"
@@ -29,10 +31,10 @@ func TestAPIManageSessionNoTwoFactor(t *testing.T) {
 	ctx := context.Background()
 	ctx = alert.WithEmitter(ctx, alert.NewTestEmitter(t))
 
-	store := newTestSQLiteStore(t)
+	db := newTestSQLiteStore(t)
 	cache := cache.NewLocalMemCache(1e6)
 
-	conf := APIConfiguration{
+	conf := lith.APIConfiguration{
 		PathPrefix:           "/api/",
 		SessionMaxAge:        time.Hour,
 		SessionRefreshAge:    time.Hour,
@@ -40,11 +42,11 @@ func TestAPIManageSessionNoTwoFactor(t *testing.T) {
 	}
 
 	var accountID string
-	atomic(t, store, func(s StoreSession) {
-		accountID = insertAccount(t, s, "jim@example.com", "loginpass", "", []uint64{PermissionGroupActiveAccount})
+	atomic(t, db, func(s store.Session) {
+		accountID = insertAccount(t, s, "jim@example.com", "loginpass", "", []uint64{store.PermissionGroupActiveAccount})
 	})
 
-	app := APIHandler(conf, store, cache, eventbus.NewNoopSink(), nil)
+	app := lith.APIHandler(conf, db, cache, eventbus.NewNoopSink(), nil, time.Now)
 
 	r := httptest.NewRequest("POST", "/api/sessions", jsonBody(t, struct {
 		Email    string `json:"email"`
@@ -133,10 +135,10 @@ func TestAPIDeleteAllAccountAuthenticationSessions(t *testing.T) {
 	ctx := context.Background()
 	ctx = alert.WithEmitter(ctx, alert.NewTestEmitter(t))
 
-	store := newTestSQLiteStore(t)
+	db := newTestSQLiteStore(t)
 	cache := cache.NewLocalMemCache(1e6)
 
-	conf := APIConfiguration{
+	conf := lith.APIConfiguration{
 		PathPrefix:           "/api/",
 		SessionMaxAge:        time.Hour,
 		SessionRefreshAge:    time.Hour,
@@ -144,8 +146,8 @@ func TestAPIDeleteAllAccountAuthenticationSessions(t *testing.T) {
 	}
 
 	var sessions []string
-	atomic(t, store, func(s StoreSession) {
-		aid := insertAccount(t, s, "jim@example.com", "loginpass", "", []uint64{PermissionGroupActiveAccount})
+	atomic(t, db, func(s store.Session) {
+		aid := insertAccount(t, s, "jim@example.com", "loginpass", "", []uint64{store.PermissionGroupActiveAccount})
 		for i := 0; i < 10; i++ {
 			sid, err := s.CreateSession(ctx, aid, time.Hour)
 			if err != nil {
@@ -155,7 +157,7 @@ func TestAPIDeleteAllAccountAuthenticationSessions(t *testing.T) {
 		}
 	})
 
-	app := APIHandler(conf, store, cache, eventbus.NewNoopSink(), nil)
+	app := lith.APIHandler(conf, db, cache, eventbus.NewNoopSink(), nil, time.Now)
 
 	r := httptest.NewRequest("DELETE", "/api/sessions", strings.NewReader(`{"all":true}`))
 	r.Header.Set("authorization", "Bearer "+sessions[3])
@@ -165,9 +167,9 @@ func TestAPIDeleteAllAccountAuthenticationSessions(t *testing.T) {
 		t.Fatalf("want Gone status, got %d: %s", w.Code, w.Body)
 	}
 
-	atomic(t, store, func(s StoreSession) {
+	atomic(t, db, func(s store.Session) {
 		for i, sid := range sessions {
-			if _, err := s.AccountBySession(ctx, sid); !errors.Is(err, ErrNotFound) {
+			if _, err := s.AccountBySession(ctx, sid); !errors.Is(err, store.ErrNotFound) {
 				t.Fatalf("session %d %q should be deleted but was not", i, sid)
 			}
 		}
@@ -180,10 +182,10 @@ func TestAPICreateSessionWithTwoFactor(t *testing.T) {
 
 	now := time.Now()
 
-	store := newTestSQLiteStore(t)
+	db := newTestSQLiteStore(t)
 	cache := cache.NewLocalMemCache(1e6)
 
-	conf := APIConfiguration{
+	conf := lith.APIConfiguration{
 		PathPrefix:           "/api/",
 		SessionMaxAge:        time.Hour,
 		SessionRefreshAge:    time.Hour,
@@ -191,11 +193,11 @@ func TestAPICreateSessionWithTwoFactor(t *testing.T) {
 	}
 
 	var accountID string
-	atomic(t, store, func(s StoreSession) {
-		accountID = insertAccount(t, s, "jim@example.com", "loginpass", "totpsecret", []uint64{PermissionGroupActiveAccount})
+	atomic(t, db, func(s store.Session) {
+		accountID = insertAccount(t, s, "jim@example.com", "loginpass", "totpsecret", []uint64{store.PermissionGroupActiveAccount})
 	})
 
-	app := APIHandler(conf, store, cache, eventbus.NewNoopSink(), nil)
+	app := lith.APIHandler(conf, db, cache, eventbus.NewNoopSink(), nil, time.Now)
 
 	r := httptest.NewRequest("POST", "/api/sessions", jsonBody(t, struct {
 		Email    string `json:"email"`
@@ -249,22 +251,22 @@ func TestAPIEnableTwoFactorWithSession(t *testing.T) {
 	ctx := context.Background()
 	ctx = alert.WithEmitter(ctx, alert.NewTestEmitter(t))
 
-	store := newTestSQLiteStore(t)
+	db := newTestSQLiteStore(t)
 	cache := cache.NewLocalMemCache(1e6)
 
-	conf := APIConfiguration{
+	conf := lith.APIConfiguration{
 		PathPrefix:           "/api/",
 		SessionMaxAge:        time.Hour,
 		SessionRefreshAge:    time.Hour,
 		RequireTwoFactorAuth: false,
 	}
 
-	atomic(t, store, func(s StoreSession) {
-		insertAccount(t, s, "andy@example.com", "loginpass", "", []uint64{PermissionGroupActiveAccount})
-		insertAccount(t, s, "bill@example.com", "loginpass", "", []uint64{PermissionGroupActiveAccount})
+	atomic(t, db, func(s store.Session) {
+		insertAccount(t, s, "andy@example.com", "loginpass", "", []uint64{store.PermissionGroupActiveAccount})
+		insertAccount(t, s, "bill@example.com", "loginpass", "", []uint64{store.PermissionGroupActiveAccount})
 	})
 
-	app := APIHandler(conf, store, cache, eventbus.NewNoopSink(), nil)
+	app := lith.APIHandler(conf, db, cache, eventbus.NewNoopSink(), nil, time.Now)
 
 	// Create session in order to access two factor info API.
 	r := httptest.NewRequest("POST", "/api/sessions", jsonBody(t, struct {
@@ -340,10 +342,10 @@ func TestAPIEnableTwoFactorWithCredentials(t *testing.T) {
 	ctx := context.Background()
 	ctx = alert.WithEmitter(ctx, alert.NewTestEmitter(t))
 
-	store := newTestSQLiteStore(t)
+	db := newTestSQLiteStore(t)
 	cache := cache.NewLocalMemCache(1e6)
 
-	conf := APIConfiguration{
+	conf := lith.APIConfiguration{
 		PathPrefix:        "/api/",
 		SessionMaxAge:     time.Hour,
 		SessionRefreshAge: time.Hour,
@@ -353,12 +355,12 @@ func TestAPIEnableTwoFactorWithCredentials(t *testing.T) {
 		RequireTwoFactorAuth: true,
 	}
 
-	atomic(t, store, func(s StoreSession) {
-		insertAccount(t, s, "andy@example.com", "loginpass", "", []uint64{PermissionGroupActiveAccount})
-		insertAccount(t, s, "bill@example.com", "loginpass", "", []uint64{PermissionGroupActiveAccount})
+	atomic(t, db, func(s store.Session) {
+		insertAccount(t, s, "andy@example.com", "loginpass", "", []uint64{store.PermissionGroupActiveAccount})
+		insertAccount(t, s, "bill@example.com", "loginpass", "", []uint64{store.PermissionGroupActiveAccount})
 	})
 
-	app := APIHandler(conf, store, cache, eventbus.NewNoopSink(), nil)
+	app := lith.APIHandler(conf, db, cache, eventbus.NewNoopSink(), nil, time.Now)
 
 	now := time.Now()
 	secret := bytes.Repeat([]byte("a"), 32)
@@ -388,7 +390,7 @@ func TestAPICreateAccount(t *testing.T) {
 	ctx := context.Background()
 	ctx = alert.WithEmitter(ctx, alert.NewTestEmitter(t))
 
-	conf := APIConfiguration{
+	conf := lith.APIConfiguration{
 		PathPrefix:                 "/api/",
 		SessionMaxAge:              time.Hour,
 		SessionRefreshAge:          time.Hour,
@@ -399,10 +401,10 @@ func TestAPICreateAccount(t *testing.T) {
 
 	var events eventbus.RecordingSink
 	var tasks taskqueue.RecordingScheduler
-	store := newTestSQLiteStore(t)
+	db := newTestSQLiteStore(t)
 	cache := cache.NewLocalMemCache(1e6)
 
-	app := APIHandler(conf, store, cache, &events, &tasks)
+	app := lith.APIHandler(conf, db, cache, &events, &tasks, time.Now)
 
 	r := httptest.NewRequest("POST", "/api/accounts", jsonBody(t, struct {
 		Email string `json:"email"`
@@ -415,7 +417,7 @@ func TestAPICreateAccount(t *testing.T) {
 		t.Fatalf("want  %d status, got %d: %s", want, got, w.Body)
 	}
 
-	var task SendConfirmRegistration
+	var task lith.SendConfirmRegistration
 	tasks.LoadRecorded(t, 0, &task)
 
 	if want, got := "danny@example.com", task.AccountEmail; want != got {
@@ -458,12 +460,12 @@ func TestAPICreateAccount(t *testing.T) {
 		t.Fatalf("decode response body: %s", err)
 	}
 
-	atomic(t, store, func(s StoreSession) {
+	atomic(t, db, func(s store.Session) {
 		a, err := s.AccountByID(ctx, created.AccountID)
 		if err != nil {
 			t.Fatal("created account cannot be found")
 		}
-		events.AssertPublished(t, AccountRegisteredEvent(a.AccountID, a.Email, a.CreatedAt))
+		events.AssertPublished(t, lith.AccountRegisteredEvent(a.AccountID, a.Email, a.CreatedAt))
 	})
 
 }
@@ -472,7 +474,7 @@ func TestAPIResetPasswordUnknownEmail(t *testing.T) {
 	ctx := context.Background()
 	ctx = alert.WithEmitter(ctx, alert.NewTestEmitter(t))
 
-	conf := APIConfiguration{
+	conf := lith.APIConfiguration{
 		PathPrefix:         "/api/",
 		SessionMaxAge:      time.Hour,
 		SessionRefreshAge:  time.Hour,
@@ -481,9 +483,9 @@ func TestAPIResetPasswordUnknownEmail(t *testing.T) {
 	}
 
 	var tasks taskqueue.RecordingScheduler
-	store := newTestSQLiteStore(t)
+	db := newTestSQLiteStore(t)
 	cache := cache.NewLocalMemCache(1e6)
-	app := APIHandler(conf, store, cache, eventbus.NewNoopSink(), &tasks)
+	app := lith.APIHandler(conf, db, cache, eventbus.NewNoopSink(), &tasks, time.Now)
 
 	r := httptest.NewRequest("POST", "/api/passwordreset", jsonBody(t, struct {
 		Email string `json:"email"`
@@ -506,7 +508,7 @@ func TestAPIResetPasswordSuccess(t *testing.T) {
 	ctx := context.Background()
 	ctx = alert.WithEmitter(ctx, alert.NewTestEmitter(t))
 
-	conf := APIConfiguration{
+	conf := lith.APIConfiguration{
 		PathPrefix:         "/api/",
 		SessionMaxAge:      time.Hour,
 		SessionRefreshAge:  time.Hour,
@@ -515,12 +517,12 @@ func TestAPIResetPasswordSuccess(t *testing.T) {
 	}
 
 	var tasks taskqueue.RecordingScheduler
-	store := newTestSQLiteStore(t)
+	db := newTestSQLiteStore(t)
 	cache := cache.NewLocalMemCache(1e6)
-	app := APIHandler(conf, store, cache, eventbus.NewNoopSink(), &tasks)
+	app := lith.APIHandler(conf, db, cache, eventbus.NewNoopSink(), &tasks, time.Now)
 
-	atomic(t, store, func(s StoreSession) {
-		insertAccount(t, s, "roger@example.com", "forgottenpassword", "", []uint64{PermissionGroupActiveAccount})
+	atomic(t, db, func(s store.Session) {
+		insertAccount(t, s, "roger@example.com", "forgottenpassword", "", []uint64{store.PermissionGroupActiveAccount})
 	})
 
 	r := httptest.NewRequest("POST", "/api/passwordreset", jsonBody(t, struct {
@@ -536,7 +538,7 @@ func TestAPIResetPasswordSuccess(t *testing.T) {
 
 	// A token required to reset the password is sent by email. Introspect
 	// task responsible for that.
-	var task SendResetPassword
+	var task lith.SendResetPassword
 	tasks.LoadRecorded(t, 0, &task)
 
 	r = httptest.NewRequest("PUT", "/api/passwordreset", jsonBody(t, struct {
@@ -591,13 +593,13 @@ func jsonBody(t testing.TB, payload interface{}) io.Reader {
 	return &b
 }
 
-func newTestSQLiteStore(t testing.TB) Store {
+func newTestSQLiteStore(t testing.TB) store.Store {
 	// Allow to introspect database by switching into a file for storage.
 	dbpath := os.Getenv("TEST_DATABASE")
 	if dbpath == "" {
 		dbpath = ":memory:?_mode=memory&_fk=on&_txlock=immediate"
 	}
-	store, err := sqlite.OpenStore(dbpath, secret.AESSafe("t0p-secret-value"))
+	store, err := sqlite.OpenStore(dbpath, secret.AESSafe("t0p-secret-value"), time.Now, lith.GenerateID)
 	if err != nil {
 		t.Fatalf("open new sqlite store: %s", err)
 	}

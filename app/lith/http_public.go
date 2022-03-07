@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/csrf"
+	"github.com/husio/lith/app/lith/store"
 	"github.com/husio/lith/pkg/alert"
 	"github.com/husio/lith/pkg/cache"
 	"github.com/husio/lith/pkg/eventbus"
@@ -26,7 +27,7 @@ import (
 
 func PublicHandler(
 	conf PublicUIConfiguration,
-	store Store,
+	store store.Store,
 	cache cache.Store,
 	safe secret.Safe,
 	secret []byte,
@@ -90,7 +91,7 @@ func (h publicDefaultHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 }
 
 type publicPasswordReset struct {
-	store Store
+	store store.Store
 	queue taskqueue.Scheduler
 	conf  PublicUIConfiguration
 }
@@ -134,8 +135,8 @@ func (h publicPasswordReset) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case err == nil:
 		// All good.
-	case errors.Is(err, ErrNotFound):
-		// Account not found, but because we don't want to give up what
+	case errors.Is(err, store.ErrNotFound):
+		// store.Account not found, but because we don't want to give up what
 		// accounts are registered, a successful message is returned.
 		tmpl.Render(w, http.StatusOK, "public_password_reset_wait_for_email.html", templateContext)
 		return
@@ -194,7 +195,7 @@ func resetPasswordCompleteURL(https bool, domain, pathPrefix, token string) stri
 }
 
 type publicPasswordResetComplete struct {
-	store Store
+	store store.Store
 	conf  PublicUIConfiguration
 }
 
@@ -221,7 +222,7 @@ func (h publicPasswordResetComplete) ServeHTTP(w http.ResponseWriter, r *http.Re
 	switch err := session.EphemeralToken(ctx, "public-reset-password", token, &resetPasswordContext); {
 	case err == nil:
 		// All good.
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		renderPublicErr(w, h.conf, http.StatusBadRequest, trans.T("Invalid token."))
 		return
 	default:
@@ -306,7 +307,7 @@ func (h publicPasswordResetComplete) ServeHTTP(w http.ResponseWriter, r *http.Re
 }
 
 type publicLogin struct {
-	store Store
+	store store.Store
 	conf  PublicUIConfiguration
 }
 
@@ -396,7 +397,7 @@ func (h publicLogin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case err == nil:
 		// All good.
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		templateContext.ErrorMsg = trans.T("Invalid login and/or password.")
 		tmpl.Render(w, http.StatusBadRequest, "public_login.html", templateContext)
 		return
@@ -409,7 +410,7 @@ func (h publicLogin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch err := session.IsAccountPassword(ctx, account.AccountID, password); {
 	case err == nil:
 		// All good.
-	case errors.Is(err, ErrPassword):
+	case errors.Is(err, store.ErrPassword):
 		templateContext.ErrorMsg = trans.T("Invalid login and/or password.")
 		tmpl.Render(w, http.StatusBadRequest, "public_login.html", templateContext)
 		return
@@ -460,7 +461,7 @@ func (h publicLogin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, h.conf.PathPrefix+"login/verify/", http.StatusSeeOther)
 		return
 
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		// Two factor authentication is not configured for this account.
 		if h.conf.RequireTwoFactorAuth {
 			// Grant a limited session token and redirect to two
@@ -530,7 +531,7 @@ func (h publicLogin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type publicLoginVerify struct {
-	store Store
+	store store.Store
 	cache cache.Store
 	conf  PublicUIConfiguration
 }
@@ -560,7 +561,7 @@ func (h publicLoginVerify) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch err := session.EphemeralToken(ctx, "public-verify-2fa", cookie.Value, &verify2faContext); {
 	case err == nil:
 		// All good.
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		http.Redirect(w, r, h.conf.PathPrefix+"login/", http.StatusSeeOther)
 		return
 	default:
@@ -650,7 +651,7 @@ func (h publicLoginVerify) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type publicLogout struct {
-	store Store
+	store store.Store
 	conf  PublicUIConfiguration
 }
 
@@ -693,7 +694,7 @@ func (h publicLogout) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type publicTwoFactorAuthEnable struct {
-	store Store
+	store store.Store
 	cache cache.Store
 	safe  secret.Safe
 	conf  PublicUIConfiguration
@@ -730,7 +731,7 @@ func (h publicTwoFactorAuthEnable) ServeHTTP(w http.ResponseWriter, r *http.Requ
 		switch err = session.EphemeralToken(ctx, "public-enable-2fa", cookie.Value, &enable2faContext); {
 		case err == nil:
 			// All good.
-		case errors.Is(err, ErrNotFound):
+		case errors.Is(err, store.ErrNotFound):
 			here := url.QueryEscape(r.URL.String())
 			http.Redirect(w, r, h.conf.PathPrefix+"login/?next="+here, http.StatusTemporaryRedirect)
 			return
@@ -761,7 +762,7 @@ func (h publicTwoFactorAuthEnable) ServeHTTP(w http.ResponseWriter, r *http.Requ
 		}
 		http.Redirect(w, r, next, http.StatusSeeOther)
 		return
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		// All good.
 	default:
 		alert.EmitErr(ctx, err, "Cannot get account TOTP secret.",
@@ -773,7 +774,7 @@ func (h publicTwoFactorAuthEnable) ServeHTTP(w http.ResponseWriter, r *http.Requ
 	templateContext := struct {
 		publicTemplateCore
 		ErrorMsg             string
-		CurrentAccount       *Account
+		CurrentAccount       *store.Account
 		EphemeralSecretToken string
 		QRCodeBase64         string
 		CSRFField            template.HTML
@@ -906,7 +907,7 @@ func (h publicTwoFactorAuthEnable) ServeHTTP(w http.ResponseWriter, r *http.Requ
 }
 
 type publicRegister struct {
-	store Store
+	store store.Store
 	queue taskqueue.Scheduler
 	conf  PublicUIConfiguration
 }
@@ -1011,7 +1012,7 @@ func registerCompleteURL(https bool, domain, pathPrefix, token string) string {
 }
 
 type publicRegisterComplete struct {
-	store  Store
+	store  store.Store
 	events eventbus.Sink
 	conf   PublicUIConfiguration
 }
@@ -1046,7 +1047,7 @@ func (h publicRegisterComplete) ServeHTTP(w http.ResponseWriter, r *http.Request
 	switch err := session.EphemeralToken(ctx, "public-register-account", token, &registerContext); {
 	case err == nil:
 		// All good.
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(err, store.ErrNotFound):
 		renderPublicErr(w, h.conf, http.StatusBadRequest, trans.T("Invalid or expired token."))
 		return
 	default:
@@ -1091,7 +1092,7 @@ func (h publicRegisterComplete) ServeHTTP(w http.ResponseWriter, r *http.Request
 	switch {
 	case err == nil:
 		// All good.
-	case errors.Is(err, ErrConflict):
+	case errors.Is(err, store.ErrConflict):
 		renderPublicErr(w, h.conf, http.StatusConflict, trans.T("Email already in use."))
 		return
 	default:

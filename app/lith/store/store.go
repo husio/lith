@@ -1,4 +1,4 @@
-package lith
+package store
 
 import (
 	"context"
@@ -12,18 +12,18 @@ import (
 type Store interface {
 	// Session returns a new session that process all operations within a
 	// translation.
-	Session(context.Context) (StoreSession, error)
+	Session(context.Context) (Session, error)
 
 	// Close store and free all resources.
 	Close() error
 }
 
-type StoreSession interface {
+type Session interface {
 	// Session returns a new session that process all operations within a
 	// translation. Commiting returned session merges all changes to the
 	// parent and it is up to the parent to do the final commit or rollback
 	// all changes.
-	Session(context.Context) (StoreSession, error)
+	Session(context.Context) (Session, error)
 
 	// Commit all changes applied within given sesssion.
 	Commit() error

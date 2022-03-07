@@ -1,5 +1,9 @@
 VERSION = $(shell git rev-parse --short HEAD)
 
+# Switch to docker if it is the preferred tool. It would be nice to detect this
+# during the runtime instead of hardcoded value.
+CONTAINER_ENGINE=podman
+
 all: help
 
 help:
@@ -19,8 +23,8 @@ build-%:
 vendor:
 	go mod tidy && go mod vendor && go mod verify
 
-docker-image:
-	docker build -t "lith:${VERSION}" -t "lith:latest" .
+container-image:
+	$(CONTAINER_ENGINE) build -t "lith:${VERSION}" -t "lith:latest" .
 
 run-lith:
 	@# In order to run with live reload, install cespare/reflex
@@ -39,7 +43,7 @@ run-test-mailserver:
 	@echo "Running SMTP server on localhost:11025"
 	@echo
 	@echo
-	docker run -p 11025:1025 -p 8025:8025 mailhog/mailhog
+	$(CONTAINER_ENGINE) run -p 11025:1025 -p 8025:8025 mailhog/mailhog
 
 run-demo: build-lith
 	@bin/lith -conf examples/lith.conf useradd -email admin@example.com -password "admin" -groups=1,2 -allow-insecure 2> /dev/null || true
@@ -68,4 +72,4 @@ translations-edit:
 	poedit .
 
 
-.PHONY: help tasks vendor docker-image run-server test
+.PHONY: help tasks vendor container-image run-server test

@@ -1,9 +1,9 @@
 ![](../../examples/go_reverseproxy/setup.png)
 
-First, make sure to run `make docker-image` in the projects main directory. This will build a docker image called `lith`.
+First, make sure to run `make container-image` in the projects main directory. This will build a "docker" image called `lith`.
 
 
-Run `docker-compose up` to start the application. You can use `-d` flag to run it in the background.
+Run `docker-compose up` (or [`podman-compose up`]()https://github.com/containers/podman-compose) to start the application. You can use `-d` flag to run it in the background.
 
     % docker-compose up
     Starting go_reverseproxy_mailhog_1    ... done

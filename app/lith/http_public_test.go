@@ -1,4 +1,4 @@
-package lith
+package lith_test
 
 import (
 	"bytes"
@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/husio/lith/app/lith"
+	"github.com/husio/lith/app/lith/store"
 	"github.com/husio/lith/pkg/alert"
 	"github.com/husio/lith/pkg/cache"
 	"github.com/husio/lith/pkg/eventbus"
@@ -25,7 +27,7 @@ func TestPublicEnableTwoFactorAuth(t *testing.T) {
 	now := time.Now()
 	totp.WithCurrentTime(t, now)
 
-	conf := PublicUIConfiguration{
+	conf := lith.PublicUIConfiguration{
 		PathPrefix:           "/t/",
 		SessionMaxAge:        time.Hour,
 		RequireTwoFactorAuth: false,
@@ -34,19 +36,19 @@ func TestPublicEnableTwoFactorAuth(t *testing.T) {
 		// Prepare is called before each test in order to
 		// bootstrap the store state and return an authentication
 		// session ID.
-		Prepare      func(testing.TB, StoreSession) string
+		Prepare      func(testing.TB, store.Session) string
 		WantGetCode  int
 		Form         url.Values
 		WantPostCode int
 	}{
 		"session is required": {
-			Prepare: func(testing.TB, StoreSession) string {
+			Prepare: func(testing.TB, store.Session) string {
 				return "a-non-existing-session-id"
 			},
 			WantGetCode: http.StatusTemporaryRedirect,
 		},
 		"a valid code must be given to confirm": {
-			Prepare: func(t testing.TB, s StoreSession) string {
+			Prepare: func(t testing.TB, s store.Session) string {
 				ctx := context.Background()
 				a, err := s.CreateAccount(ctx, "joe@example.com", "asdldsdlkhsadsalkhdsa")
 				if err != nil {
@@ -65,7 +67,7 @@ func TestPublicEnableTwoFactorAuth(t *testing.T) {
 			WantPostCode: http.StatusBadRequest,
 		},
 		"two factor already enabled": {
-			Prepare: func(t testing.TB, s StoreSession) string {
+			Prepare: func(t testing.TB, s store.Session) string {
 				ctx := context.Background()
 				a, err := s.CreateAccount(ctx, "joe@example.com", "akdlajdsalklkjoqiqwewqe")
 				if err != nil {
@@ -86,7 +88,7 @@ func TestPublicEnableTwoFactorAuth(t *testing.T) {
 			WantGetCode: http.StatusSeeOther,
 		},
 		"providing a valid code enables two-factor authentication": {
-			Prepare: func(t testing.TB, s StoreSession) string {
+			Prepare: func(t testing.TB, s store.Session) string {
 				ctx := context.Background()
 				a, err := s.CreateAccount(ctx, "joe@example.com", "akdlajdsalklkjoqiqwewqe")
 				if err != nil {
@@ -114,14 +116,14 @@ func TestPublicEnableTwoFactorAuth(t *testing.T) {
 
 	for testName, tc := range cases {
 		t.Run(testName, func(t *testing.T) {
-			store := newTestSQLiteStore(t)
+			db := newTestSQLiteStore(t)
 			var sessionID string
-			atomic(t, store, func(s StoreSession) {
+			atomic(t, db, func(s store.Session) {
 				sessionID = tc.Prepare(t, s)
 			})
 			cache := cache.NewLocalMemCache(1e6)
 			safe := secret.AESSafe("t0p-secret")
-			app := PublicHandler(conf, store, cache, safe, secret.Generate(16), eventbus.NewNoopSink(), nil)
+			app := lith.PublicHandler(conf, db, cache, safe, secret.Generate(16), eventbus.NewNoopSink(), nil)
 
 			r := httptest.NewRequest("GET", "/t/twofactor/enable/", nil)
 			r.Header.Set("cookie", "s="+sessionID)
@@ -152,12 +154,12 @@ func TestPublicEnableTwoFactorAuth(t *testing.T) {
 }
 
 func TestPublicRegisterAccount(t *testing.T) {
-	conf := PublicUIConfiguration{
+	conf := lith.PublicUIConfiguration{
 		PathPrefix:                        "/public/",
 		SessionMaxAge:                     time.Hour,
 		RequireTwoFactorAuth:              false,
 		AllowRegisterAccount:              true,
-		RegisteredAccountPermissionGroups: []uint64{PermissionGroupActiveAccount},
+		RegisteredAccountPermissionGroups: []uint64{store.PermissionGroupActiveAccount},
 		Domain:                            "tests.com",
 		DomainSSL:                         true,
 		MinPasswordLength:                 16,
@@ -165,10 +167,10 @@ func TestPublicRegisterAccount(t *testing.T) {
 
 	var events eventbus.RecordingSink
 	var tasks taskqueue.RecordingScheduler
-	store := newTestSQLiteStore(t)
+	db := newTestSQLiteStore(t)
 	cache := cache.NewLocalMemCache(1e6)
 	safe := secret.AESSafe("t0p-secret")
-	app := PublicHandler(conf, store, cache, safe, secret.Generate(16), &events, &tasks)
+	app := lith.PublicHandler(conf, db, cache, safe, secret.Generate(16), &events, &tasks)
 
 	t.Run("an invalid token cannot be used to render password setting page", func(t *testing.T) {
 		r := httptest.NewRequest("GET", "/public/register/invalid-or-non-existing-token/", nil)
@@ -201,7 +203,7 @@ func TestPublicRegisterAccount(t *testing.T) {
 		t.Fatalf("want register POST response %d status, got %d: %s", want, got, w.Body)
 	}
 
-	var task SendConfirmRegistration
+	var task lith.SendConfirmRegistration
 	tasks.LoadRecorded(t, 0, &task)
 
 	if task.AccountEmail != "mona@example.com" {
@@ -274,7 +276,7 @@ func TestPublicRegisterAccount(t *testing.T) {
 		t.Fatalf("want register POST response %d status, got %d: %s", want, got, w.Body)
 	}
 
-	atomic(t, store, func(s StoreSession) {
+	atomic(t, db, func(s store.Session) {
 		a, err := s.AccountByEmail(context.Background(), "mona@example.com")
 		if err != nil {
 			t.Fatalf("getting mona account: %s", err)
@@ -282,7 +284,7 @@ func TestPublicRegisterAccount(t *testing.T) {
 		if !reflect.DeepEqual(a.Permissions, []string{"login"}) {
 			t.Fatalf("unexpected permissions: %q", a.Permissions)
 		}
-		events.AssertPublished(t, AccountRegisteredEvent(a.AccountID, a.Email, a.CreatedAt))
+		events.AssertPublished(t, lith.AccountRegisteredEvent(a.AccountID, a.Email, a.CreatedAt))
 	})
 
 }
@@ -293,7 +295,7 @@ func TestPublicResetPassword(t *testing.T) {
 }
 
 func TestPublicLoginNoTwoFactorAuth(t *testing.T) {
-	conf := PublicUIConfiguration{
+	conf := lith.PublicUIConfiguration{
 		PathPrefix:           "/t/",
 		SessionMaxAge:        time.Hour,
 		RequireTwoFactorAuth: false,
@@ -302,15 +304,15 @@ func TestPublicLoginNoTwoFactorAuth(t *testing.T) {
 	cases := map[string]struct {
 		// PrepareStore is called before each test in order to
 		// bootstrap the store state.
-		PrepareStore func(testing.TB, StoreSession)
+		PrepareStore func(testing.TB, store.Session)
 		Form         url.Values
 		WantCode     int
 		WantNext     string
 		WantLoggedAs string
 	}{
 		"successful admin login with next": {
-			PrepareStore: func(t testing.TB, s StoreSession) {
-				insertAccount(t, s, "admin@example.com", "t0p-secret", "", []uint64{PermissionGroupActiveAccount, PermissionGroupSystemAdmin})
+			PrepareStore: func(t testing.TB, s store.Session) {
+				insertAccount(t, s, "admin@example.com", "t0p-secret", "", []uint64{store.PermissionGroupActiveAccount, store.PermissionGroupSystemAdmin})
 			},
 			Form: url.Values{
 				"email":    {"admin@example.com"},
@@ -322,8 +324,8 @@ func TestPublicLoginNoTwoFactorAuth(t *testing.T) {
 			WantLoggedAs: "admin@example.com",
 		},
 		"successful user login, no next": {
-			PrepareStore: func(t testing.TB, s StoreSession) {
-				insertAccount(t, s, "user@example.com", "t0p-secret", "", []uint64{PermissionGroupActiveAccount})
+			PrepareStore: func(t testing.TB, s store.Session) {
+				insertAccount(t, s, "user@example.com", "t0p-secret", "", []uint64{store.PermissionGroupActiveAccount})
 			},
 			Form: url.Values{
 				"email":    {"user@example.com"},
@@ -334,7 +336,7 @@ func TestPublicLoginNoTwoFactorAuth(t *testing.T) {
 			WantLoggedAs: "user@example.com",
 		},
 		"missing login permission": {
-			PrepareStore: func(t testing.TB, s StoreSession) {
+			PrepareStore: func(t testing.TB, s store.Session) {
 				insertAccount(t, s, "nopermissions@example.com", "t0p-secret", "", nil)
 			},
 			Form: url.Values{
@@ -347,13 +349,13 @@ func TestPublicLoginNoTwoFactorAuth(t *testing.T) {
 
 	for testName, tc := range cases {
 		t.Run(testName, func(t *testing.T) {
-			store := newTestSQLiteStore(t)
+			db := newTestSQLiteStore(t)
 
-			atomic(t, store, func(s StoreSession) {
+			atomic(t, db, func(s store.Session) {
 				tc.PrepareStore(t, s)
 			})
 
-			app := PublicHandler(conf, store, nil, nil, secret.Generate(16), eventbus.NewNoopSink(), nil)
+			app := lith.PublicHandler(conf, db, nil, nil, secret.Generate(16), eventbus.NewNoopSink(), nil)
 
 			csrfToken, csrfCookie := acquireCSRFToken(t, "/t/login/", app)
 
@@ -373,7 +375,7 @@ func TestPublicLoginNoTwoFactorAuth(t *testing.T) {
 				t.Fatalf("want next %q, got %q", want, got)
 			}
 			if tc.WantLoggedAs != "" {
-				assertIsLoggedAs(t, w, store, tc.WantLoggedAs)
+				assertIsLoggedAs(t, w, db, tc.WantLoggedAs)
 			}
 		})
 	}
@@ -385,13 +387,13 @@ func TestPublicLoginWithTwoFactorAuth(t *testing.T) {
 		t.Fatalf("parse time: %s", err)
 	}
 
-	withCurrentTime(t, now)
+	// TODO: withCurrentTime(t, now)
 	totp.WithCurrentTime(t, now)
 
 	ctx := context.Background()
 	ctx = alert.WithEmitter(ctx, alert.NewTextEmitter(os.Stdout))
 
-	conf := PublicUIConfiguration{
+	conf := lith.PublicUIConfiguration{
 		PathPrefix:           "/t/",
 		RequireTwoFactorAuth: true,
 		SessionMaxAge:        time.Hour,
@@ -400,7 +402,7 @@ func TestPublicLoginWithTwoFactorAuth(t *testing.T) {
 	cases := map[string]struct {
 		// Prepare is called before each test in order to
 		// bootstrap the store state.
-		Prepare func(testing.TB, StoreSession, cache.Store)
+		Prepare func(testing.TB, store.Session, cache.Store)
 
 		FormLogin     url.Values
 		WantLoginCode int
@@ -410,10 +412,10 @@ func TestPublicLoginWithTwoFactorAuth(t *testing.T) {
 		WantLoggedAs  string
 	}{
 		"successful admin login with next": {
-			Prepare: func(t testing.TB, s StoreSession, c cache.Store) {
+			Prepare: func(t testing.TB, s store.Session, c cache.Store) {
 				insertAccount(t, s, "admin@example.com", "pass", "totp-secret", []uint64{
-					PermissionGroupActiveAccount,
-					PermissionGroupSystemAdmin,
+					store.PermissionGroupActiveAccount,
+					store.PermissionGroupSystemAdmin,
 				})
 			},
 			FormLogin: url.Values{
@@ -430,8 +432,8 @@ func TestPublicLoginWithTwoFactorAuth(t *testing.T) {
 			WantLoggedAs: "admin@example.com",
 		},
 		"successful user login without next": {
-			Prepare: func(t testing.TB, s StoreSession, c cache.Store) {
-				insertAccount(t, s, "user@example.com", "pass", "totp-secret", []uint64{PermissionGroupActiveAccount})
+			Prepare: func(t testing.TB, s store.Session, c cache.Store) {
+				insertAccount(t, s, "user@example.com", "pass", "totp-secret", []uint64{store.PermissionGroupActiveAccount})
 			},
 			FormLogin: url.Values{
 				"email":    {"user@example.com"},
@@ -446,8 +448,8 @@ func TestPublicLoginWithTwoFactorAuth(t *testing.T) {
 			WantLoggedAs: "user@example.com",
 		},
 		"successful user login using an older 2fa code": {
-			Prepare: func(t testing.TB, s StoreSession, c cache.Store) {
-				insertAccount(t, s, "user@example.com", "pass", "totp-secret", []uint64{PermissionGroupActiveAccount})
+			Prepare: func(t testing.TB, s store.Session, c cache.Store) {
+				insertAccount(t, s, "user@example.com", "pass", "totp-secret", []uint64{store.PermissionGroupActiveAccount})
 			},
 			FormLogin: url.Values{
 				"email":    {"user@example.com"},
@@ -466,8 +468,8 @@ func TestPublicLoginWithTwoFactorAuth(t *testing.T) {
 			WantLoggedAs: "user@example.com",
 		},
 		"invalid 2fa code": {
-			Prepare: func(t testing.TB, s StoreSession, c cache.Store) {
-				insertAccount(t, s, "user@example.com", "pass", "totp-secret", []uint64{PermissionGroupActiveAccount})
+			Prepare: func(t testing.TB, s store.Session, c cache.Store) {
+				insertAccount(t, s, "user@example.com", "pass", "totp-secret", []uint64{store.PermissionGroupActiveAccount})
 			},
 			FormLogin: url.Values{
 				"email":    {"user@example.com"},
@@ -480,10 +482,10 @@ func TestPublicLoginWithTwoFactorAuth(t *testing.T) {
 			Want2FaCode: http.StatusBadRequest,
 		},
 		"valid but already used 2fa code": {
-			Prepare: func(t testing.TB, s StoreSession, c cache.Store) {
+			Prepare: func(t testing.TB, s store.Session, c cache.Store) {
 				const totpSecret = "qwertyuiop"
 
-				insertAccount(t, s, "user@example.com", "pass", totpSecret, []uint64{PermissionGroupActiveAccount})
+				insertAccount(t, s, "user@example.com", "pass", totpSecret, []uint64{store.PermissionGroupActiveAccount})
 
 				// Validate totp secret in order to claim its use. Next validation call must return ErrUsed.
 				code := totp.Generate(now, []byte(totpSecret))
@@ -502,7 +504,7 @@ func TestPublicLoginWithTwoFactorAuth(t *testing.T) {
 			Want2FaCode: http.StatusBadRequest,
 		},
 		"missing login permission": {
-			Prepare: func(t testing.TB, s StoreSession, c cache.Store) {
+			Prepare: func(t testing.TB, s store.Session, c cache.Store) {
 				insertAccount(t, s, "nopermissions@example.com", "password", "totp-secret", nil)
 			},
 			FormLogin: url.Values{
@@ -515,16 +517,16 @@ func TestPublicLoginWithTwoFactorAuth(t *testing.T) {
 
 	for testName, tc := range cases {
 		t.Run(testName, func(t *testing.T) {
-			store := newTestSQLiteStore(t)
+			db := newTestSQLiteStore(t)
 
 			cache := cache.NewLocalMemCache(1e6)
 			safe := secret.AESSafe("t0p-secret")
 
-			atomic(t, store, func(s StoreSession) {
+			atomic(t, db, func(s store.Session) {
 				tc.Prepare(t, s, cache)
 			})
 
-			app := PublicHandler(conf, store, cache, safe, secret.Generate(16), eventbus.NewNoopSink(), nil)
+			app := lith.PublicHandler(conf, db, cache, safe, secret.Generate(16), eventbus.NewNoopSink(), nil)
 
 			csrfToken, csrfCookie := acquireCSRFToken(t, "/t/login/", app)
 
@@ -544,7 +546,7 @@ func TestPublicLoginWithTwoFactorAuth(t *testing.T) {
 
 			// Time is passing between submitting forms.
 			now = now.Add(time.Second)
-			withCurrentTime(t, now)
+			// TODO:  withCurrentTime(t, now)
 			totp.WithCurrentTime(t, now)
 
 			tc.Form2Fa.Set("csrf", csrfToken)
@@ -559,7 +561,7 @@ func TestPublicLoginWithTwoFactorAuth(t *testing.T) {
 				t.Fatalf("want 2fa response %d status, got %d: %s", want, got, w.Body)
 			}
 			if tc.WantLoggedAs != "" {
-				assertIsLoggedAs(t, w, store, tc.WantLoggedAs)
+				assertIsLoggedAs(t, w, db, tc.WantLoggedAs)
 			}
 			if want, got := tc.WantNext, w.Header().Get("location"); want != got {
 				t.Fatalf("want next %q, got %q", want, got)
@@ -572,23 +574,23 @@ func TestPublicLoginWithTwoFactorAuthRequired(t *testing.T) {
 	ctx := context.Background()
 	ctx = alert.WithEmitter(ctx, alert.NewTextEmitter(os.Stdout))
 
-	store := newTestSQLiteStore(t)
+	db := newTestSQLiteStore(t)
 	cache := cache.NewLocalMemCache(1e6)
 	safe := secret.AESSafe("t0p-secret")
 
 	secret.WithDeterministicGenerate(t, secret.Value("secret-1234"))
 
 	var accountID string
-	atomic(t, store, func(s StoreSession) {
+	atomic(t, db, func(s store.Session) {
 		// An account without 2fa setup.
-		accountID = insertAccount(t, s, "joe@example.com", "logpass", "", []uint64{PermissionGroupActiveAccount})
+		accountID = insertAccount(t, s, "joe@example.com", "logpass", "", []uint64{store.PermissionGroupActiveAccount})
 	})
 
-	app := PublicHandler(PublicUIConfiguration{
+	app := lith.PublicHandler(lith.PublicUIConfiguration{
 		PathPrefix:           "/2fa-required/",
 		SessionMaxAge:        time.Hour,
 		RequireTwoFactorAuth: true,
-	}, store, cache, safe, secret.Generate(16), eventbus.NewNoopSink(), nil)
+	}, db, cache, safe, secret.Generate(16), eventbus.NewNoopSink(), nil)
 
 	csrfToken, csrfCookie := acquireCSRFToken(t, "/2fa-required/login/", app)
 
@@ -621,8 +623,8 @@ func TestPublicLoginWithTwoFactorAuthRequired(t *testing.T) {
 		t.Fatalf("want login response %d status, got %d: %s", want, got, w.Body)
 	}
 
-	atomic(t, store, func(s StoreSession) {
-		if _, err := s.AccountTOTPSecret(ctx, accountID); !errors.Is(err, ErrNotFound) {
+	atomic(t, db, func(s store.Session) {
+		if _, err := s.AccountTOTPSecret(ctx, accountID); !errors.Is(err, store.ErrNotFound) {
 			t.Fatalf("Until the user confirms 2fa enabling, TOTP secret must not be set, got %+v", err)
 		}
 	})
@@ -650,7 +652,7 @@ func TestPublicLoginWithTwoFactorAuthRequired(t *testing.T) {
 		t.Fatalf("want login response %d status, got %d: %s", want, got, w.Body)
 	}
 
-	atomic(t, store, func(s StoreSession) {
+	atomic(t, db, func(s store.Session) {
 		totpSecret, err := s.AccountTOTPSecret(ctx, accountID)
 		if err != nil {
 			t.Fatalf("get TOTP secret: %+v", err)
@@ -664,10 +666,10 @@ func TestPublicLoginWithTwoFactorAuthRequired(t *testing.T) {
 		t.Errorf("want next %q, got %q", want, got)
 	}
 
-	assertIsLoggedAs(t, w, store, "joe@example.com")
+	assertIsLoggedAs(t, w, db, "joe@example.com")
 }
 
-func assertIsLoggedAs(t testing.TB, w *httptest.ResponseRecorder, store Store, email string) {
+func assertIsLoggedAs(t testing.TB, w *httptest.ResponseRecorder, store store.Store, email string) {
 	t.Helper()
 
 	request := &http.Request{Header: http.Header{"Cookie": w.HeaderMap["Set-Cookie"]}}
@@ -690,4 +692,35 @@ func assertIsLoggedAs(t testing.TB, w *httptest.ResponseRecorder, store Store, e
 	if account.Email != email {
 		t.Fatalf("want %q email, session belogns to %q (account %q)", email, account.Email, account.AccountID)
 	}
+}
+
+func atomic(t testing.TB, s store.Store, fn func(s store.Session)) {
+	session, err := s.Session(context.Background())
+	if err != nil {
+		t.Fatalf("create store session: %s", err)
+	}
+	defer session.Rollback()
+
+	fn(session)
+
+	if err := session.Commit(); err != nil {
+		t.Fatalf("store session commit: %s", err)
+	}
+}
+
+func insertAccount(t testing.TB, s store.Session, email, password, totpSecret string, permissionGroups []uint64) string {
+	t.Helper()
+	ctx := context.Background()
+
+	a, err := s.CreateAccount(ctx, email, password)
+	if err != nil {
+		t.Fatalf("create account: %s", err)
+	}
+	if err := s.UpdateAccountPermissionGroups(ctx, a.AccountID, permissionGroups); err != nil {
+		t.Fatalf("cannot assign groups to jimmy: %s", err)
+	}
+	if err := s.UpdateAccountTOTPSecret(ctx, a.AccountID, []byte(totpSecret)); err != nil {
+		t.Fatalf("cannot set TOTP secret: %s", err)
+	}
+	return a.AccountID
 }
