@@ -23,7 +23,7 @@ Demo instance is available at https://lith-demo.herokuapp.com/
 
 ## Quick start
 
-Lith is a standalone service that can be integrated in many ways. You can start a generic demo instance by executing `make run-demo`.
+Lith is a standalone service that can be integrated in many ways. You can start a generic demo instance by executing `./run run-demo`.
 For more specific setup examples, see [examples](#examples) section.
 
 ## Examples

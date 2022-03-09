@@ -18,7 +18,7 @@ jobs:
         go-version: 1.17
 
     - name: Test
-      run: make test
+      run: ./run test
 
     - name: Build
-      run: make build
+      run: ./run build-lith
